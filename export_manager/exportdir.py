@@ -1,3 +1,4 @@
+from git import Repo
 from pathlib import Path
 import re
 import toml
@@ -67,7 +68,15 @@ class ExportDir:
         verpath = self.get_version_path(version)
         if not verpath:
             return
-        # TODO: support git repos
+
+        cfg = self.get_config()
+        if cfg.get('git', False):
+            repo = Repo(self.path)
+            index = repo.index
+            index.remove(str(verpath), r=True)
+            # TODO delete screenshots/etc
+            index.commit(f'[export-manager] delete old version {version}')
+
         if verpath.is_file():
             verpath.unlink()
         elif verpath.is_dir():

@@ -1,4 +1,5 @@
 import unittest
+from git import Repo
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
@@ -87,6 +88,25 @@ class MyTestCase(unittest.TestCase):
             verpath.joinpath('foo.json').touch()
             exdir.delete_version("2000-01-02T030405Z")
             self.assertFalse(verpath.exists())
+
+    def test_delete_version_dir_git(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('git = true')
+            verpath = Path(path).joinpath('data', '2000-01-02T030405Z')
+            verpath.mkdir()
+            verpath.joinpath('foo.json').touch()
+            repo = Repo.init(path)
+            repo.index.add('data/2000-01-02T030405Z/foo.json')
+            repo.index.commit('add file')
+            exdir.delete_version("2000-01-02T030405Z")
+            self.assertFalse(verpath.exists())
+            commit = repo.head.commit
+            self.assertEqual(commit.message, '[export-manager] delete old ' +
+                             'version 2000-01-02T030405Z')
+            self.assertEqual(len(commit.tree), 0)
+            self.assertEqual(len(commit.parents[0].tree), 1)
 
     def test_clean_no_keep(self):
         with TemporaryDirectory() as path:
