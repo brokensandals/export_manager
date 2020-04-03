@@ -28,6 +28,41 @@ class MyTestCase(unittest.TestCase):
             exdir.initialize()
             self.assertTrue(exdir.is_valid())
 
+    def test_get_versions_no_data_dir(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            self.assertEqual(exdir.get_versions(), [])
+
+    def test_get_versions(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            datadir = Path(path).joinpath('data')
+            datadir.joinpath('notaversion.json').touch()
+            datadir.joinpath('2000-01-02T030405Z.json').touch()
+            datadir.joinpath('2000-06-07T080910Z').mkdir()
+            self.assertEqual(exdir.get_versions(), ['2000-01-02T030405Z', '2000-06-07T080910Z'])
+
+    def test_get_version_path_invalid(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            self.assertIsNone(exdir.get_version_path('invalid'))
+
+    def test_get_version_nonexistent(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            self.assertIsNone(exdir.get_version_path('2000-01-02T030405Z'))
+
+    def test_get_version(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            verpath = Path(path).joinpath('data', '2000-01-02T030405Z.json')
+            verpath.touch()
+            self.assertEqual(exdir.get_version_path('2000-01-02T030405Z'), verpath)
+
 
 if __name__ == '__main__':
     unittest.main()
