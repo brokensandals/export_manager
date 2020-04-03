@@ -63,6 +63,62 @@ class MyTestCase(unittest.TestCase):
             verpath.touch()
             self.assertEqual(exdir.get_version_path('2000-01-02T030405Z'), verpath)
 
+    def test_delete_version_nonexistent(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            exdir.delete_version("2000-01-02T030405Z") # should not raise error
+
+    def test_delete_version_file(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            verpath = Path(path).joinpath('data', '2000-01-02T030405Z.json')
+            verpath.touch()
+            exdir.delete_version("2000-01-02T030405Z")
+            self.assertFalse(verpath.exists())
+
+    def test_delete_version_dir(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            verpath = Path(path).joinpath('data', '2000-01-02T030405Z')
+            verpath.mkdir()
+            verpath.joinpath('foo.json').touch()
+            exdir.delete_version("2000-01-02T030405Z")
+            self.assertFalse(verpath.exists())
+
+    def test_clean_no_keep(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            dpath = Path(path).joinpath('data')
+            for i in range(10):
+                dpath.joinpath(f'2000-01-02T03040{i}Z.json').touch()
+            exdir.clean()
+            self.assertEqual(sum(1 for p in dpath.glob('*.json')), 10)
+
+            Path(path).joinpath('config.toml').write_text('keep = 0')
+            exdir.clean()
+            self.assertEqual(sum(1 for p in dpath.glob('*.json')), 10)
+
+            Path(path).joinpath('config.toml').write_text('keep = -1')
+            exdir.clean()
+            self.assertEqual(sum(1 for p in dpath.glob('*.json')), 10)
+
+    def test_clean(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            dpath = Path(path).joinpath('data')
+            verpaths = [dpath.joinpath(f'2000-01-02T03040{i}Z.json') for i
+                        in range(10)]
+            for verpath in verpaths:
+                verpath.touch()
+            Path(path).joinpath('config.toml').write_text('keep = 3')
+            exdir.clean()
+            self.assertEqual(sorted(dpath.glob('*.json')), verpaths[7:])
+
 
 if __name__ == '__main__':
     unittest.main()

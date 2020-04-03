@@ -1,7 +1,10 @@
 from pathlib import Path
 import re
+import toml
+import shutil
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
+
 
 class ExportDir:
     """Provides access to an export directory, which should have the
@@ -54,3 +57,26 @@ class ExportDir:
                      in self.data_path.glob(version + '*')
                      if path.stem == version),
                     None)
+
+    def get_config(self):
+        if not self.config_path.exists():
+            return {}
+        return toml.load(self.config_path)
+
+    def delete_version(self, version):
+        verpath = self.get_version_path(version)
+        if not verpath:
+            return
+        # TODO: support git repos
+        if verpath.is_file():
+            verpath.unlink()
+        elif verpath.is_dir():
+            shutil.rmtree(verpath)
+
+    def clean(self):
+        cfg = self.get_config()
+        if cfg.get('keep', 0) > 0:
+            vers = self.get_versions()
+            while len(vers) > cfg['keep']:
+                self.delete_version(vers[0])
+                del vers[0]
