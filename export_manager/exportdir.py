@@ -46,12 +46,16 @@ class ExportDir:
             self.data_path.mkdir()
 
     def get_versions(self):
+        """Returns a list of data versions that exist in the directory."""
         vers = [path.stem for path
                 in self.data_path.glob('*')
                 if VERSION_FORMAT.match(path.stem)]
         return sorted(vers)
 
     def get_version_path(self, version):
+        """Returns the Path of the directory or file for the given data
+        version, or None.
+        """
         if not VERSION_FORMAT.match(version):
             return None
         return next((path for path
@@ -60,11 +64,17 @@ class ExportDir:
                     None)
 
     def get_config(self):
+        """Returns a dictionary containing the contents of config.toml;
+        returns an empty dict if config.toml is missing.
+        """
         if not self.config_path.exists():
             return {}
         return toml.load(self.config_path)
 
     def delete_version(self, version):
+        """Deletes the data for the given version. If git=true in config.toml,
+        also makes a commit removing the data.
+        """
         verpath = self.get_version_path(version)
         if not verpath:
             return
@@ -75,7 +85,7 @@ class ExportDir:
             index = repo.index
             index.remove(str(verpath), r=True)
             # TODO delete screenshots/etc
-            index.commit(f'[export-manager] delete old version {version}')
+            index.commit(f'[export-manager] delete version {version}')
 
         if verpath.is_file():
             verpath.unlink()
@@ -83,6 +93,11 @@ class ExportDir:
             shutil.rmtree(verpath)
 
     def clean(self):
+        """Calls delete_version for outdated versions. This looks at the
+        'keep' config in config.toml: if it's a positive integer, the oldest
+        versions will be deleted until only that number are left. Otherwise,
+        this method does nothing.
+        """
         cfg = self.get_config()
         if cfg.get('keep', 0) > 0:
             vers = self.get_versions()

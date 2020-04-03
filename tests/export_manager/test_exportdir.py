@@ -103,7 +103,7 @@ class MyTestCase(unittest.TestCase):
             exdir.delete_version("2000-01-02T030405Z")
             self.assertFalse(verpath.exists())
             commit = repo.head.commit
-            self.assertEqual(commit.message, '[export-manager] delete old ' +
+            self.assertEqual(commit.message, '[export-manager] delete ' +
                              'version 2000-01-02T030405Z')
             self.assertEqual(len(commit.tree), 0)
             self.assertEqual(len(commit.parents[0].tree), 1)
