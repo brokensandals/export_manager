@@ -3,6 +3,9 @@ from pathlib import Path
 import re
 import toml
 import shutil
+from datetime import datetime
+from datetime import timedelta
+from .interval import parse_delta
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 
@@ -104,3 +107,18 @@ class ExportDir:
             while len(vers) > cfg['keep']:
                 self.delete_version(vers[0])
                 del vers[0]
+
+    def is_due(self, margin=timedelta(minutes=5)):
+        """Returns true if an interval is defined in config.toml and that
+        interval has passed since the most recent export.
+        """
+        interval_str = self.get_config().get('interval', None)
+        if not interval_str:
+            return False
+        interval = parse_delta(interval_str) - margin
+        versions = self.get_versions()
+        if len(versions) == 0:
+            return True
+        last = datetime.strptime(versions[-1], '%Y-%m-%dT%H%M%S%z')
+        now = datetime.now(last.tzinfo)
+        return (now - last) >= interval

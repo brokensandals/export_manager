@@ -2,6 +2,8 @@ import unittest
 from git import Repo
 from tempfile import TemporaryDirectory
 from pathlib import Path
+from datetime import datetime
+from datetime import timedelta
 
 from ...export_manager.exportdir import ExportDir
 
@@ -138,6 +140,47 @@ class MyTestCase(unittest.TestCase):
             Path(path).joinpath('config.toml').write_text('keep = 3')
             exdir.clean()
             self.assertEqual(sorted(dpath.glob('*.json')), verpaths[7:])
+
+    def test_is_due_no_interval(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            self.assertFalse(exdir.is_due())
+
+    def test_is_due_no_versions(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('interval = "1000 weeks"')
+            self.assertTrue(exdir.is_due())
+
+    def test_is_due_no(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('interval = "1 hour"')
+            old = datetime.strptime('2000-01-02T030405Z', '%Y-%m-%dT%H%M%S%z')
+            now = datetime.now(old.tzinfo)
+            last = now - timedelta(minutes=30)
+            Path(path).joinpath('data', '2000-01-02T030405Z.json').touch()
+            Path(path).joinpath('data',
+                                f'{last.strftime("%Y-%m-%dT%H%M%SZ")}.json')\
+                .touch()
+            self.assertFalse(exdir.is_due())
+
+    def test_is_due_yes(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('interval = "1 hour"')
+            old = datetime.strptime('2000-01-02T030405Z', '%Y-%m-%dT%H%M%S%z')
+            now = datetime.now(old.tzinfo)
+            last = now - timedelta(minutes=57) # within the default 5-minute margin
+            Path(path).joinpath('data', '2000-01-02T030405Z.json').touch()
+            Path(path).joinpath('data',
+                                f'{last.strftime("%Y-%m-%dT%H%M%SZ")}.json')\
+                .touch()
+            self.assertTrue(exdir.is_due())
 
 
 if __name__ == '__main__':
