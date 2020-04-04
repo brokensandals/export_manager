@@ -1,6 +1,6 @@
 import unittest
 from datetime import timedelta
-from ...export_manager.interval import parse_delta
+from export_manager.interval import parse_delta
 
 
 class IntervalTests(unittest.TestCase):

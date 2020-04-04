@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from datetime import timedelta
 
-from ...export_manager.exportdir import ExportDir
+from export_manager.exportdir import ExportDir
 
 
 class ExportDirTests(unittest.TestCase):
