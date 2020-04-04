@@ -8,7 +8,7 @@ from datetime import timedelta
 from ...export_manager.exportdir import ExportDir
 
 
-class MyTestCase(unittest.TestCase):
+class ExportDirTests(unittest.TestCase):
     def test_nonexistent_dir(self):
         exdir = ExportDir('./bogusbogusbogus')
         self.assertFalse(exdir.is_valid())
