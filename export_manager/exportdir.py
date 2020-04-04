@@ -111,6 +111,8 @@ class ExportDir:
     def is_due(self, margin=timedelta(minutes=5)):
         """Returns true if an interval is defined in config.toml and that
         interval has passed since the most recent export.
+        The margin param is subtracted from the interval, so that this method
+        will return true if the export is at least close to being due.
         """
         interval_str = self.get_config().get('interval', None)
         if not interval_str:
