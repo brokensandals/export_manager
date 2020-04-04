@@ -9,6 +9,11 @@ import subprocess
 from .interval import parse_delta
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
+SAMPLE_CONFIG_TOML = """# exportcmd = "echo hi"
+# git = true
+# interval = "1d"
+# keep = 5
+"""
 
 
 class ExportDir:
@@ -45,7 +50,7 @@ class ExportDir:
         if not self.path.exists():
             self.path.mkdir(parents=True, exist_ok=True)
         if not self.config_path.exists():
-            self.config_path.touch()
+            self.config_path.write_text(SAMPLE_CONFIG_TOML)
         if not self.data_path.exists():
             self.data_path.mkdir()
 
@@ -150,6 +155,22 @@ class ExportDir:
             index.add(str(verpath))
             index.commit(f'[export-manager] add data version {ver}')
 
+    def process(self):
+        errors = []
+
+        try:
+            if self.is_due():
+                self.do_export()
+        except Exception as e:
+            errors.append(Exception(f'export failed: {self.path}', e))
+
+        try:
+            self.clean()
+        except Exception as e:
+            errors.append(Exception(f'clean failed: {self.path}', e))
+
+        return errors
+
 
 class ExportDirSet:
     def __init__(self, path):
@@ -158,17 +179,3 @@ class ExportDirSet:
     def get_dirs(self):
         configs = self.path.glob('*/config.toml')
         return [ExportDir(p.parent) for p in configs]
-
-    def process_all(self):
-        errors = []
-        for exdir in self.get_dirs():
-            if exdir.is_due():
-                try:
-                    exdir.do_export()
-                except Exception as e:
-                    errors.append(('export', exdir, e))
-            try:
-                exdir.clean()
-            except Exception as e:
-                errors.append(('clean', exdir, e))
-        return errors
