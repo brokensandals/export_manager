@@ -182,6 +182,48 @@ class MyTestCase(unittest.TestCase):
                 .touch()
             self.assertTrue(exdir.is_due())
 
+    def test_do_export_no_cmd(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            self.assertRaises(Exception, exdir.do_export)
+
+    def test_do_export_no_data(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('exportcmd = "echo hi > /dev/null"')
+            self.assertRaises(Exception, exdir.do_export)
+
+    def test_do_export(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text('exportcmd = "echo hi > $EXPORT_DEST.txt"')
+            exdir.do_export()
+            vers = exdir.get_versions()
+            self.assertEqual(len(vers), 1)
+            verpath = exdir.get_version_path(vers[0])
+            self.assertEqual(verpath.read_text().strip(), 'hi')
+
+    def test_do_export_git(self):
+        with TemporaryDirectory() as path:
+            exdir = ExportDir(path)
+            exdir.initialize()
+            Path(path).joinpath('config.toml').write_text(
+                'exportcmd = "mkdir $EXPORT_DEST; echo hi > $EXPORT_DEST/foo.txt"\n' +
+                'git = true'
+            )
+            repo = Repo.init(path)
+            exdir.do_export()
+            vers = exdir.get_versions()
+            self.assertEqual(len(vers), 1)
+            verpath = exdir.get_version_path(vers[0])
+            self.assertEqual(verpath.joinpath('foo.txt').read_text().strip(), 'hi')
+            commit = repo.head.commit
+            self.assertEqual(commit.message, '[export-manager] add data ' +
+                             f'version {vers[0]}')
+            self.assertEqual(len(commit.tree), 1)
 
 if __name__ == '__main__':
     unittest.main()

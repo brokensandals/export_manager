@@ -5,6 +5,7 @@ import toml
 import shutil
 from datetime import datetime
 from datetime import timedelta
+import subprocess
 from .interval import parse_delta
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
@@ -124,3 +125,22 @@ class ExportDir:
         last = datetime.strptime(versions[-1], '%Y-%m-%dT%H%M%S%z')
         now = datetime.now(last.tzinfo)
         return (now - last) >= interval
+
+    def do_export(self):
+        cfg = self.get_config()
+        cmd = cfg.get('exportcmd', '')
+        if not cmd:
+            raise Exception('exportcmd is not defined in config.toml')
+        ver = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
+        dest = str(self.data_path.joinpath(ver))
+        env = {'EXPORT_DEST': dest}
+        subprocess.check_call(cmd, shell=True, env=env)
+        verpath = self.get_version_path(ver)
+        if not verpath:
+            raise Exception(f'export did not produce data in {verpath}')
+
+        if cfg.get('git', False):
+            repo = Repo(self.path)
+            index = repo.index
+            index.add(str(verpath))
+            index.commit(f'[export-manager] add data version {ver}')
