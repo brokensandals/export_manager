@@ -6,6 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 
 from export_manager.exportdir import ExportDir
+from export_manager.exportdir import ExportDirSet
 
 
 class ExportDirTests(unittest.TestCase):
@@ -226,6 +227,20 @@ class ExportDirTests(unittest.TestCase):
             self.assertEqual(commit.message, '[export-manager] add data ' +
                              f'version {vers[0]}')
             self.assertEqual(len(commit.tree), 1)
+
+
+class ExportDirSetTests(unittest.TestCase):
+    def test_get_dirs(self):
+        with TemporaryDirectory() as path:
+            rpath = Path(path).joinpath('real', 'config.toml')
+            rpath.parent.mkdir()
+            rpath.touch()
+            cpath = Path(path).joinpath('bogus', 'whatever.txt')
+            cpath.parent.mkdir()
+            cpath.touch()
+            dirs = ExportDirSet(path).get_dirs()
+            self.assertEqual([d.path for d in dirs], [rpath.parent])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -149,3 +149,23 @@ class ExportDir:
             index = repo.index
             index.add(str(verpath))
             index.commit(f'[export-manager] add data version {ver}')
+
+
+class ExportDirSet:
+    def __init__(self, path):
+        self.path = Path(path)
+
+    def get_dirs(self):
+        configs = self.path.glob('*/config.toml')
+        return [ExportDir(p.parent) for p in configs]
+
+    def do_due_exports(self):
+        results = {}
+        for exdir in self.get_dirs():
+            if exdir.is_due():
+                try:
+                    exdir.do_export()
+                    results[exdir] = True
+                except Exception as e:
+                    results[exdir] = e
+        return results
