@@ -199,12 +199,14 @@ class MyTestCase(unittest.TestCase):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
             exdir.initialize()
-            Path(path).joinpath('config.toml').write_text('exportcmd = "echo hi > $EXPORT_DEST.txt"')
+            Path(path).joinpath('config.toml')\
+                .write_text('exportcmd = "echo hi from $EXPORT_ROOT ' +
+                            '> $EXPORT_DEST.txt"')
             exdir.do_export()
             vers = exdir.get_versions()
             self.assertEqual(len(vers), 1)
             verpath = exdir.get_version_path(vers[0])
-            self.assertEqual(verpath.read_text().strip(), 'hi')
+            self.assertEqual(verpath.read_text().strip(), f'hi from {path}')
 
     def test_do_export_git(self):
         with TemporaryDirectory() as path:

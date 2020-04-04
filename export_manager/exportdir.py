@@ -127,13 +127,18 @@ class ExportDir:
         return (now - last) >= interval
 
     def do_export(self):
+        """Runs the export using the exportcmd defined in config.toml.
+        Raises an exception if the command is missing, fails, or does not
+        write data to the expected location. If git=true in config.toml,
+        the new data will be committed to git.
+        """
         cfg = self.get_config()
         cmd = cfg.get('exportcmd', '')
         if not cmd:
             raise Exception('exportcmd is not defined in config.toml')
         ver = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
-        dest = str(self.data_path.joinpath(ver))
-        env = {'EXPORT_DEST': dest}
+        env = {'EXPORT_DEST': str(self.data_path.joinpath(ver)),
+               'EXPORT_ROOT': str(self.path)}
         subprocess.check_call(cmd, shell=True, env=env)
         verpath = self.get_version_path(ver)
         if not verpath:
