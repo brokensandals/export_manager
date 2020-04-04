@@ -159,13 +159,16 @@ class ExportDirSet:
         configs = self.path.glob('*/config.toml')
         return [ExportDir(p.parent) for p in configs]
 
-    def do_due_exports(self):
-        results = {}
+    def process_all(self):
+        errors = []
         for exdir in self.get_dirs():
             if exdir.is_due():
                 try:
                     exdir.do_export()
-                    results[exdir] = True
                 except Exception as e:
-                    results[exdir] = e
-        return results
+                    errors.append(('export', exdir, e))
+            try:
+                exdir.clean()
+            except Exception as e:
+                errors.append(('clean', exdir, e))
+        return errors
