@@ -14,6 +14,11 @@ setuptools.setup(
     url="https://github.com/brokensandals/export_manager",
     packages=setuptools.find_packages('src'),
     package_dir={'':'src'},
+    entry_points={
+        'console_scripts': [
+            'export_manager = export_manager.cli:main'
+        ]
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
