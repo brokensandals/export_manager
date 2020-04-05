@@ -7,24 +7,24 @@ Setup:
 1. Install python3 and pip
 2. Clone the repo
 3. I recommend creating a venv:
-    ```python
+    ```bash
     cd export_manager
     python3 -m venv venv
     source venv/bin/activate
     ```
 4. Install dependencies:
-    ```python
+    ```bash
    pip install .
     ```
 
 To run unit tests:
 
-```python
+```bash
 PYTHONPATH=src python -m unittest discover tests
 ```
 
 To run the CLI:
 
-```python
+```bash
 PYTHONPATH=src python -m export_manager ...
 ```
