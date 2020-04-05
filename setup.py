@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Jacob Williams",
     author_email="jacobaw@gmail.com",
-    description="A small example package",
+    description="A tool for managing automated exports of personal data",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/brokensandals/export_manager",
