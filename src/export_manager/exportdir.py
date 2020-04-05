@@ -94,7 +94,7 @@ class ExportDir:
             index = repo.index
             index.remove(str(verpath), r=True)
             # TODO delete screenshots/etc
-            index.commit(f'[export-manager] delete version {version}')
+            index.commit(f'[export_manager] delete version {version}')
 
         if verpath.is_file():
             verpath.unlink()
@@ -153,7 +153,7 @@ class ExportDir:
             repo = Repo(self.path)
             index = repo.index
             index.add(str(verpath))
-            index.commit(f'[export-manager] add data version {ver}')
+            index.commit(f'[export_manager] add data version {ver}')
 
     def process(self):
         errors = []

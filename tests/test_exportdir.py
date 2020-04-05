@@ -106,7 +106,7 @@ class ExportDirTests(unittest.TestCase):
             exdir.delete_version("2000-01-02T030405Z")
             self.assertFalse(verpath.exists())
             commit = repo.head.commit
-            self.assertEqual(commit.message, '[export-manager] delete ' +
+            self.assertEqual(commit.message, '[export_manager] delete ' +
                              'version 2000-01-02T030405Z')
             self.assertEqual(len(commit.tree), 0)
             self.assertEqual(len(commit.parents[0].tree), 1)
@@ -224,7 +224,7 @@ class ExportDirTests(unittest.TestCase):
             verpath = exdir.get_version_path(vers[0])
             self.assertEqual(verpath.joinpath('foo.txt').read_text().strip(), 'hi')
             commit = repo.head.commit
-            self.assertEqual(commit.message, '[export-manager] add data ' +
+            self.assertEqual(commit.message, '[export_manager] add data ' +
                              f'version {vers[0]}')
             self.assertEqual(len(commit.tree), 1)
 
