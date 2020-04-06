@@ -238,7 +238,7 @@ class ExportDirTests(unittest.TestCase):
             expected = {'version': ver, 'bytes': '12'}
             self.assertEqual(exdir.collect_metrics(ver), expected)
 
-    def test_read_metrics_and_append_metrics_row(self):
+    def test_read_metrics_and_save_metrics_row(self):
         with TemporaryDirectory() as rawpath:
             exdir = ExportDir(rawpath)
             exdir.initialize()
@@ -247,28 +247,32 @@ class ExportDirTests(unittest.TestCase):
 2000-01-02T030405Z,12,,9000
 2000-01-03T010101Z,55,80,"""
             path.joinpath('metrics.csv').write_text(content)
-            expected = [
-                {'version': '2000-01-02T030405Z',
-                 'bytes': '12',
-                 'foo': '',
-                 'bar': '9000'},
-                {'version': '2000-01-03T010101Z',
-                 'bytes': '55',
-                 'foo': '80',
-                 'bar': ''},
-            ]
+            expected = {
+                '2000-01-02T030405Z': {
+                    'version': '2000-01-02T030405Z',
+                    'bytes': '12',
+                    'foo': '',
+                    'bar': '9000',
+                },
+                '2000-01-03T010101Z': {
+                    'version': '2000-01-03T010101Z',
+                    'bytes': '55',
+                    'foo': '80',
+                    'bar': '',
+                },
+            }
             self.assertEqual(exdir.read_metrics(), expected)
 
             row = {'version': '2020-10-10T121212Z',
                    'bytes': '101',
                    'baz': '301',
-                   'bar': '201',}
-            exdir.append_metrics_row(row)
+                   'bar': '201'}
+            exdir.save_metrics_row(row)
 
-            expected[0]['baz'] = ''
-            expected[1]['baz'] = ''
+            expected['2000-01-02T030405Z']['baz'] = ''
+            expected['2000-01-03T010101Z']['baz'] = ''
             row['foo'] = ''
-            expected.append(row)
+            expected[row['version']] = row
             self.assertEqual(exdir.read_metrics(), expected)
 
             expected_c = """version,bytes,foo,bar,baz

@@ -173,7 +173,7 @@ class ExportDir:
 
         if ver:
             try:
-                self.append_metrics_row(self.collect_metrics(ver))
+                self.save_metrics_row(self.collect_metrics(ver))
             except Exception as e:
                 errors.append(Exception(f'metrics update failed: {self.path}',
                                         e))
@@ -199,23 +199,31 @@ class ExportDir:
 
     def read_metrics(self):
         if not self.metrics_path.exists():
-            return []
+            return {}
+        results = {}
         with open(self.metrics_path) as file:
-            return list(csv.DictReader(file))
+            for row in csv.DictReader(file):
+                ver = row['version']
+                if ver in results:
+                    raise Exception('version has multiple entries in ' +
+                                    f'metrics.csv: {ver}')
+                results[ver] = row
+        return results
 
-    def append_metrics_row(self, metrics):
-        old = self.read_metrics()
-        fields = metrics.keys()
-        if old:
-            fields = list(old[0].keys())
-            for field in metrics.keys():
-                if field not in old[0]:
+    def save_metrics_row(self, row):
+        metrics = self.read_metrics()
+        fields = list(row.keys())
+        if metrics:
+            existing_fields = next(iter(metrics.values())).keys()
+            fields = list(existing_fields)
+            for field in row.keys():
+                if field not in existing_fields:
                     fields.append(field)
+        metrics[row['version']] = row
         with open(self.metrics_path, 'w') as file:
             writer = csv.DictWriter(file, fieldnames=fields)
             writer.writeheader()
-            writer.writerows(old)
-            writer.writerow(metrics)
+            writer.writerows(metrics.values())
 
         cfg = self.get_config()
         if cfg.get('git', False):
