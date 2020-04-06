@@ -201,7 +201,7 @@ class ExportDirTests(unittest.TestCase):
             exdir = ExportDir(path)
             exdir.initialize()
             Path(path).joinpath('config.toml')\
-                .write_text('exportcmd = "echo hi from $EXPORT_ROOT ' +
+                .write_text('exportcmd = "echo hi from $EXPORT_DIR ' +
                             '> $EXPORT_DEST.txt"')
             exdir.do_export()
             vers = exdir.get_versions()

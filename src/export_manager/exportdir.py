@@ -143,7 +143,7 @@ class ExportDir:
             raise Exception('exportcmd is not defined in config.toml')
         ver = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
         env = {'EXPORT_DEST': str(self.data_path.joinpath(ver)),
-               'EXPORT_ROOT': str(self.path)}
+               'EXPORT_DIR': str(self.path)}
         subprocess.check_call(cmd, shell=True, env=env)
         verpath = self.get_version_path(ver)
         if not verpath:
