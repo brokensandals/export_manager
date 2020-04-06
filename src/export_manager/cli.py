@@ -29,6 +29,12 @@ def process(args):
         sys.exit(1)
 
 
+def reprocess_metrics(args):
+    path = Path(args.base, args.name[0])
+    exdir = ExportDir(path)
+    exdir.save_metrics_row(exdir.collect_metrics(args.version[0]))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--base', default=os.getcwd(),
@@ -47,6 +53,15 @@ def main():
     p_process = subs.add_parser('process', help='run due exports & cleanups')
     p_process.add_argument('-o', '--only', nargs='*')
     p_process.set_defaults(func=process)
+
+    p_reprocess_metrics = subs.add_parser(
+        'reprocess_metrics',
+        help='run metrics commands for existing export and update metrics.yml'
+    )
+    p_reprocess_metrics.add_argument('name', nargs=1, help='export name')
+    p_reprocess_metrics.add_argument('version', nargs=1,
+                                     help='version of data to process')
+    p_reprocess_metrics.set_defaults(func=reprocess_metrics)
 
     args = parser.parse_args()
     if not args.func:
