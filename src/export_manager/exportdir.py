@@ -9,6 +9,7 @@ from datetime import timedelta
 import subprocess
 from .interval import parse_delta
 from .fsutil import total_size_bytes
+from .fsutil import total_file_count
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 SAMPLE_CONFIG_TOML = """# exportcmd = "echo hi"
@@ -192,7 +193,8 @@ class ExportDir:
 
         metrics = {
             'version': version,
-            'bytes': str(total_size_bytes(path))
+            'bytes': str(total_size_bytes(path)),
+            'files': str(total_file_count(path)),
         }
 
         cfg = self.get_config()

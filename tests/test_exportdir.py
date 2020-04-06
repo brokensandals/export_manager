@@ -235,7 +235,7 @@ class ExportDirTests(unittest.TestCase):
             path = Path(rawpath)
             ver = '2000-01-02T030405Z'
             path.joinpath('data', f'{ver}.txt').write_text('Hello world!')
-            expected = {'version': ver, 'bytes': '12'}
+            expected = {'version': ver, 'bytes': '12', 'files': '1'}
             self.assertEqual(exdir.collect_metrics(ver), expected)
 
     def test_collect_metrics_custom(self):
@@ -248,7 +248,8 @@ class ExportDirTests(unittest.TestCase):
                             '"cat $EXPORT_PATH | wc -w"')
             ver = '2000-01-02T030405Z'
             path.joinpath('data', f'{ver}.txt').write_text('Hello world!')
-            expected = {'version': ver, 'bytes': '12', 'words': '2'}
+            expected = {'version': ver, 'bytes': '12', 'files': '1',
+                        'words': '2'}
             self.assertEqual(exdir.collect_metrics(ver), expected)
 
     def test_read_metrics_and_save_metrics_row(self):
