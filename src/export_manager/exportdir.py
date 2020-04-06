@@ -1,5 +1,6 @@
 from git import Repo
 from pathlib import Path
+import csv
 import re
 import toml
 import shutil
@@ -7,6 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 import subprocess
 from .interval import parse_delta
+from .fsutil import total_size_bytes
 
 VERSION_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 SAMPLE_CONFIG_TOML = """# exportcmd = "echo hi"
@@ -136,6 +138,8 @@ class ExportDir:
         Raises an exception if the command is missing, fails, or does not
         write data to the expected location. If git=true in config.toml,
         the new data will be committed to git.
+
+        Returns the version identifier that was used.
         """
         cfg = self.get_config()
         cmd = cfg.get('exportcmd', '')
@@ -155,14 +159,24 @@ class ExportDir:
             index.add(str(verpath))
             index.commit(f'[export_manager] add data version {ver}')
 
+        return ver
+
     def process(self):
         errors = []
 
+        ver = None
         try:
             if self.is_due():
-                self.do_export()
+                ver = self.do_export()
         except Exception as e:
             errors.append(Exception(f'export failed: {self.path}', e))
+
+        if ver:
+            try:
+                self.append_metrics_row(self.collect_metrics(ver))
+            except Exception as e:
+                errors.append(Exception(f'metrics update failed: {self.path}',
+                                        e))
 
         try:
             self.clean()
@@ -170,6 +184,45 @@ class ExportDir:
             errors.append(Exception(f'clean failed: {self.path}', e))
 
         return errors
+
+    def collect_metrics(self, version):
+        path = self.get_version_path(version)
+        if not path:
+            raise ValueError(f'cannot find version: {version}')
+
+        metrics = {
+            'version': version,
+            'bytes': str(total_size_bytes(path))
+        }
+
+        return metrics
+
+    def read_metrics(self):
+        if not self.metrics_path.exists():
+            return []
+        with open(self.metrics_path) as file:
+            return list(csv.DictReader(file))
+
+    def append_metrics_row(self, metrics):
+        old = self.read_metrics()
+        fields = metrics.keys()
+        if old:
+            fields = list(old[0].keys())
+            for field in metrics.keys():
+                if field not in old[0]:
+                    fields.append(field)
+        with open(self.metrics_path, 'w') as file:
+            writer = csv.DictWriter(file, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(old)
+            writer.writerow(metrics)
+
+        cfg = self.get_config()
+        if cfg.get('git', False):
+            repo = Repo(self.path)
+            index = repo.index
+            index.add(str(self.metrics_path))
+            index.commit(f'[export_manager] update metrics')
 
 
 class ExportDirSet:

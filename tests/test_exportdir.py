@@ -228,6 +228,57 @@ class ExportDirTests(unittest.TestCase):
                              f'version {vers[0]}')
             self.assertEqual(len(commit.tree), 1)
 
+    def test_collect_metrics_default(self):
+        with TemporaryDirectory() as rawpath:
+            exdir = ExportDir(rawpath)
+            exdir.initialize()
+            path = Path(rawpath)
+            ver = '2000-01-02T030405Z'
+            path.joinpath('data', f'{ver}.txt').write_text('Hello world!')
+            expected = {'version': ver, 'bytes': '12'}
+            self.assertEqual(exdir.collect_metrics(ver), expected)
+
+    def test_read_metrics_and_append_metrics_row(self):
+        with TemporaryDirectory() as rawpath:
+            exdir = ExportDir(rawpath)
+            exdir.initialize()
+            path = Path(rawpath)
+            content = """version,bytes,foo,bar
+2000-01-02T030405Z,12,,9000
+2000-01-03T010101Z,55,80,"""
+            path.joinpath('metrics.csv').write_text(content)
+            expected = [
+                {'version': '2000-01-02T030405Z',
+                 'bytes': '12',
+                 'foo': '',
+                 'bar': '9000'},
+                {'version': '2000-01-03T010101Z',
+                 'bytes': '55',
+                 'foo': '80',
+                 'bar': ''},
+            ]
+            self.assertEqual(exdir.read_metrics(), expected)
+
+            row = {'version': '2020-10-10T121212Z',
+                   'bytes': '101',
+                   'baz': '301',
+                   'bar': '201',}
+            exdir.append_metrics_row(row)
+
+            expected[0]['baz'] = ''
+            expected[1]['baz'] = ''
+            row['foo'] = ''
+            expected.append(row)
+            self.assertEqual(exdir.read_metrics(), expected)
+
+            expected_c = """version,bytes,foo,bar,baz
+2000-01-02T030405Z,12,,9000,
+2000-01-03T010101Z,55,80,,
+2020-10-10T121212Z,101,,201,301
+"""
+            self.assertEqual(path.joinpath('metrics.csv').read_text(),
+                             expected_c)
+
 
 class ExportDirSetTests(unittest.TestCase):
     def test_get_dirs(self):
