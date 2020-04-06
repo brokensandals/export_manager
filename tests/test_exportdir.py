@@ -238,6 +238,19 @@ class ExportDirTests(unittest.TestCase):
             expected = {'version': ver, 'bytes': '12'}
             self.assertEqual(exdir.collect_metrics(ver), expected)
 
+    def test_collect_metrics_custom(self):
+        with TemporaryDirectory() as rawpath:
+            exdir = ExportDir(rawpath)
+            exdir.initialize()
+            path = Path(rawpath)
+            path.joinpath('config.toml')\
+                .write_text('metrics.words.cmd = ' +
+                            '"cat $EXPORT_PATH | wc -w"')
+            ver = '2000-01-02T030405Z'
+            path.joinpath('data', f'{ver}.txt').write_text('Hello world!')
+            expected = {'version': ver, 'bytes': '12', 'words': '2'}
+            self.assertEqual(exdir.collect_metrics(ver), expected)
+
     def test_read_metrics_and_save_metrics_row(self):
         with TemporaryDirectory() as rawpath:
             exdir = ExportDir(rawpath)

@@ -195,6 +195,15 @@ class ExportDir:
             'bytes': str(total_size_bytes(path))
         }
 
+        cfg = self.get_config()
+        m_cfgs = cfg.get('metrics', {})
+        for name in m_cfgs:
+            cmd = m_cfgs[name]['cmd']
+            env = {'EXPORT_PATH': str(path),
+                   'EXPORT_DIR': str(self.path)}
+            out = subprocess.check_output(cmd, shell=True, env=env)
+            metrics[name] = str(out, 'utf-8').strip()
+
         return metrics
 
     def read_metrics(self):
