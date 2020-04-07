@@ -19,6 +19,34 @@ SAMPLE_CONFIG_TOML = """# exportcmd = "echo hi"
 """
 
 
+def find_data_path(parent, version):
+    matches = list(parent.glob(f'{version}*'))
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise Exception(
+            f'multiple data files or dirs exist for {version} in {parent}')
+    return matches[0]
+
+
+class VersionStatus:
+    def __init__(self, export_dir, version):
+        self.version = version
+        self.data_path = find_data_path(export_dir.data_path, version)
+        self.incomplete_data_path = find_data_path(
+            export_dir.incomplete_data_path, version)
+        out = export_dir.log_path.joinpath(f'{version}.out')
+        if out.is_file():
+            self.out_path = out
+        else:
+            self.out_path = None
+        err = export_dir.log_path.joinpath(f'{version}.err')
+        if err.is_file():
+            self.err_path = err
+        else:
+            self.err_path = None
+
+
 class ExportDir:
     """Provides access to an export directory, which should have the
     the following structure:
@@ -30,15 +58,23 @@ class ExportDir:
             2019-01-02T030405Z.json # file can have any extension, or may be a directory
             2019-02-03T040506Z.json
             # ...
-        screenshots/
-            2019-01-02T030405Z.png # file can be any type of image, or be a directory of images
-            2019-02-03T040506Z.png
+        incomplete/
+            2019-03-04T050607Z.json
+        log/
+            2019-01-02T030405Z.out
+            2019-01-02T030405Z.err
+            2019-02-03T040506Z.out
+            2019-02-03T040506Z.err
+            2019-03-04T050607Z.out
+            2019-03-04T050607Z.err
     """
 
     def __init__(self, path):
         self.path = Path(path)
         self.config_path = self.path.joinpath('config.toml')
         self.data_path = self.path.joinpath('data')
+        self.incomplete_data_path = self.path.joinpath('incomplete')
+        self.log_path = self.path.joinpath('log')
         self.metrics_path = self.path.joinpath('metrics.csv')
 
     def is_valid(self):
@@ -49,31 +85,31 @@ class ExportDir:
         - the directory
         - config.toml
         - data/ dir
+        - incomplete/ dir
+        - log/ dir
         """
-        if not self.path.exists():
-            self.path.mkdir(parents=True, exist_ok=True)
+        dirs = [self.path,
+                self.data_path,
+                self.incomplete_data_path,
+                self.log_path]
+        for path in dirs:
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
         if not self.config_path.exists():
             self.config_path.write_text(SAMPLE_CONFIG_TOML)
-        if not self.data_path.exists():
-            self.data_path.mkdir()
 
-    def get_versions(self):
-        """Returns a list of data versions that exist in the directory."""
-        vers = [path.stem for path
-                in self.data_path.glob('*')
-                if VERSION_FORMAT.match(path.stem)]
-        return sorted(vers)
-
-    def get_version_path(self, version):
-        """Returns the Path of the directory or file for the given data
-        version, or None.
-        """
+    def version_status(self, version):
         if not VERSION_FORMAT.match(version):
             return None
-        return next((path for path
-                     in self.data_path.glob(version + '*')
-                     if path.stem == version),
-                    None)
+        return VersionStatus(self, version)
+
+    def all_version_statuses(self):
+        dirs = [self.data_path, self.incomplete_data_path, self.log_path]
+        vers = set()
+        for path in dirs:
+            vers.update(p.stem for p in path.glob('*')
+                        if VERSION_FORMAT.match(p.stem))
+        return [VersionStatus(self, v) for v in sorted(vers)]
 
     def get_config(self):
         """Returns a dictionary containing the contents of config.toml;
@@ -87,22 +123,23 @@ class ExportDir:
         """Deletes the data for the given version. If git=true in config.toml,
         also makes a commit removing the data.
         """
-        verpath = self.get_version_path(version)
-        if not verpath:
-            return
+        vs = self.version_status(version)
 
-        cfg = self.get_config()
-        if cfg.get('git', False):
-            repo = Repo(self.path)
-            index = repo.index
-            index.remove(str(verpath), r=True)
-            # TODO delete screenshots/etc
-            index.commit(f'[export_manager] delete version {version}')
+        if vs.data_path:
+            cfg = self.get_config()
+            if cfg.get('git', False):
+                repo = Repo(self.path)
+                index = repo.index
+                index.remove(str(vs.data_path), r=True)
+                index.commit(f'[export_manager] delete version {version}')
 
-        if verpath.is_file():
-            verpath.unlink()
-        elif verpath.is_dir():
-            shutil.rmtree(verpath)
+        paths = [vs.data_path, vs.incomplete_data_path,
+                 vs.out_path, vs.err_path]
+        for path in paths:
+            if path and path.is_file():
+                path.unlink()
+            elif path and path.is_dir():
+                shutil.rmtree(path)
 
     def clean(self):
         """Calls delete_version for outdated versions. This looks at the
@@ -112,9 +149,11 @@ class ExportDir:
         """
         cfg = self.get_config()
         if cfg.get('keep', 0) > 0:
-            vers = self.get_versions()
+            vers = self.all_version_statuses()
+            # TODO: prioritize complete versions, or allow separate
+            # configuration of how many incomplete versions to keep
             while len(vers) > cfg['keep']:
-                self.delete_version(vers[0])
+                self.delete_version(vers[0].version)
                 del vers[0]
 
     def is_due(self, margin=timedelta(minutes=5)):
@@ -127,10 +166,10 @@ class ExportDir:
         if not interval_str:
             return False
         interval = parse_delta(interval_str) - margin
-        versions = self.get_versions()
-        if len(versions) == 0:
+        vers = self.all_version_statuses()
+        if len(vers) == 0:
             return True
-        last = datetime.strptime(versions[-1], '%Y-%m-%dT%H%M%S%z')
+        last = datetime.strptime(vers[-1].version, '%Y-%m-%dT%H%M%S%z')
         now = datetime.now(last.tzinfo)
         return (now - last) >= interval
 
@@ -147,17 +186,20 @@ class ExportDir:
         if not cmd:
             raise Exception('exportcmd is not defined in config.toml')
         ver = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
-        env = {'EXPORT_DEST': str(self.data_path.joinpath(ver)),
+        dest = self.incomplete_data_path.joinpath(ver)
+        env = {'EXPORT_DEST': str(dest),
                'EXPORT_DIR': str(self.path)}
         subprocess.check_call(cmd, shell=True, env=env)
-        verpath = self.get_version_path(ver)
-        if not verpath:
-            raise Exception(f'export did not produce data in {verpath}')
+        oldpath = find_data_path(self.incomplete_data_path, ver)
+        if not oldpath:
+            raise Exception(f'export did not produce data in {dest}*')
+        newpath = self.data_path.joinpath(oldpath.name)
+        oldpath.rename(newpath)
 
         if cfg.get('git', False):
             repo = Repo(self.path)
             index = repo.index
-            index.add(str(verpath))
+            index.add(str(newpath))
             if repo.is_dirty():
                 index.commit(f'[export_manager] add data version {ver}')
 
@@ -188,9 +230,10 @@ class ExportDir:
         return errors
 
     def collect_metrics(self, version):
-        path = self.get_version_path(version)
+        vs = self.version_status(version)
+        path = vs.data_path
         if not path:
-            raise ValueError(f'cannot find version: {version}')
+            raise ValueError(f'cannot find version data: {version}')
 
         metrics = {
             'version': version,

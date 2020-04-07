@@ -35,11 +35,13 @@ def reprocess_metrics(args):
     for exdir in exdirs:
         if args.name and args.name[0] != exdir.path.stem:
             continue
-        for ver in exdir.get_versions():
-            if args.version and args.version[0] != ver:
+        for vs in exdir.all_version_statuses():
+            if not vs.data_path:
+                continue
+            if args.version and args.version[0] != vs.version:
                 continue
             # TODO: do all updates in one git commit
-            exdir.save_metrics_row(exdir.collect_metrics(ver))
+            exdir.save_metrics_row(exdir.collect_metrics(vs.version))
 
 
 def main():

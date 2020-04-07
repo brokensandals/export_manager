@@ -32,12 +32,12 @@ class ExportDirTests(unittest.TestCase):
             exdir.initialize()
             self.assertTrue(exdir.is_valid())
 
-    def test_get_versions_no_data_dir(self):
+    def test_all_version_statuses_none(self):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
-            self.assertEqual(exdir.get_versions(), [])
+            self.assertEqual(exdir.all_version_statuses(), [])
 
-    def test_get_versions(self):
+    def test_all_version_statuses(self):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
             exdir.initialize()
@@ -45,27 +45,49 @@ class ExportDirTests(unittest.TestCase):
             datadir.joinpath('notaversion.json').touch()
             datadir.joinpath('2000-01-02T030405Z.json').touch()
             datadir.joinpath('2000-06-07T080910Z').mkdir()
-            self.assertEqual(exdir.get_versions(), ['2000-01-02T030405Z', '2000-06-07T080910Z'])
+            self.assertEqual([v.version for v
+                              in exdir.all_version_statuses()],
+                             ['2000-01-02T030405Z', '2000-06-07T080910Z'])
 
-    def test_get_version_path_invalid(self):
+    def test_version_status_invalid(self):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
             exdir.initialize()
-            self.assertIsNone(exdir.get_version_path('invalid'))
+            self.assertIsNone(exdir.version_status('invalid'))
 
-    def test_get_version_nonexistent(self):
+    def test_version_status_nonexistent(self):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
             exdir.initialize()
-            self.assertIsNone(exdir.get_version_path('2000-01-02T030405Z'))
+            vs = exdir.version_status('2000-01-02T030405Z')
+            # TODO might be better to return None
+            self.assertIsNone(vs.data_path)
+            self.assertIsNone(vs.incomplete_data_path)
+            self.assertIsNone(vs.out_path)
+            self.assertIsNone(vs.err_path)
 
-    def test_get_version(self):
+    def test_version_status(self):
         with TemporaryDirectory() as path:
             exdir = ExportDir(path)
             exdir.initialize()
             verpath = Path(path).joinpath('data', '2000-01-02T030405Z.json')
             verpath.touch()
-            self.assertEqual(exdir.get_version_path('2000-01-02T030405Z'), verpath)
+            vs = exdir.version_status('2000-01-02T030405Z')
+            self.assertEqual(vs.data_path, verpath)
+            self.assertIsNone(vs.incomplete_data_path)
+            self.assertIsNone(vs.out_path)
+            self.assertIsNone(vs.err_path)
+            ipath = Path(path).joinpath('incomplete', '2000-01-02T030405Z.json')
+            opath = Path(path).joinpath('log', '2000-01-02T030405Z.out')
+            epath = Path(path).joinpath('log', '2000-01-02T030405Z.err')
+            ipath.touch()
+            opath.touch()
+            epath.touch()
+            vs = exdir.version_status('2000-01-02T030405Z')
+            self.assertEqual(vs.data_path, verpath)
+            self.assertEqual(vs.incomplete_data_path, ipath)
+            self.assertEqual(vs.out_path, opath)
+            self.assertEqual(vs.err_path, epath)
 
     def test_delete_version_nonexistent(self):
         with TemporaryDirectory() as path:
@@ -204,9 +226,10 @@ class ExportDirTests(unittest.TestCase):
                 .write_text('exportcmd = "echo hi from $EXPORT_DIR ' +
                             '> $EXPORT_DEST.txt"')
             exdir.do_export()
-            vers = exdir.get_versions()
+            vers = exdir.all_version_statuses()
             self.assertEqual(len(vers), 1)
-            verpath = exdir.get_version_path(vers[0])
+            verpath = vers[0].data_path
+            self.assertEqual(verpath.parent, Path(path).joinpath('data'))
             self.assertEqual(verpath.read_text().strip(), f'hi from {path}')
 
     def test_do_export_git(self):
@@ -219,13 +242,14 @@ class ExportDirTests(unittest.TestCase):
             )
             repo = Repo.init(path)
             exdir.do_export()
-            vers = exdir.get_versions()
+            vers = exdir.all_version_statuses()
             self.assertEqual(len(vers), 1)
-            verpath = exdir.get_version_path(vers[0])
+            verpath = vers[0].data_path
+            self.assertEqual(verpath.parent, Path(path).joinpath('data'))
             self.assertEqual(verpath.joinpath('foo.txt').read_text().strip(), 'hi')
             commit = repo.head.commit
             self.assertEqual(commit.message, '[export_manager] add data ' +
-                             f'version {vers[0]}')
+                             f'version {vers[0].version}')
             self.assertEqual(len(commit.tree), 1)
 
     def test_collect_metrics_default(self):
