@@ -30,9 +30,16 @@ def process(args):
 
 
 def reprocess_metrics(args):
-    path = Path(args.base, args.name[0])
-    exdir = ExportDir(path)
-    exdir.save_metrics_row(exdir.collect_metrics(args.version[0]))
+    eds = ExportDirSet(args.base)
+    exdirs = eds.get_dirs()
+    for exdir in exdirs:
+        if args.name and args.name[0] != exdir.path.stem:
+            continue
+        for ver in exdir.get_versions():
+            if args.version and args.version[0] != ver:
+                continue
+            # TODO: do all updates in one git commit
+            exdir.save_metrics_row(exdir.collect_metrics(ver))
 
 
 def main():
@@ -56,10 +63,10 @@ def main():
 
     p_reprocess_metrics = subs.add_parser(
         'reprocess_metrics',
-        help='run metrics commands for existing export and update metrics.yml'
+        help='run metrics commands for existing exports & update metrics.yml'
     )
-    p_reprocess_metrics.add_argument('name', nargs=1, help='export name')
-    p_reprocess_metrics.add_argument('version', nargs=1,
+    p_reprocess_metrics.add_argument('name', nargs='?', help='export name')
+    p_reprocess_metrics.add_argument('version', nargs='?',
                                      help='version of data to process')
     p_reprocess_metrics.set_defaults(func=reprocess_metrics)
 

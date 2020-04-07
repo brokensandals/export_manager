@@ -158,7 +158,8 @@ class ExportDir:
             repo = Repo(self.path)
             index = repo.index
             index.add(str(verpath))
-            index.commit(f'[export_manager] add data version {ver}')
+            if repo.is_dirty():
+                index.commit(f'[export_manager] add data version {ver}')
 
         return ver
 
@@ -241,7 +242,8 @@ class ExportDir:
             repo = Repo(self.path)
             index = repo.index
             index.add(str(self.metrics_path))
-            index.commit(f'[export_manager] update metrics')
+            if repo.is_dirty():
+                index.commit(f'[export_manager] update metrics')
 
 
 class ExportDirSet:
