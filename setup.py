@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="export_manager", # Replace with your own username
+    name="export_manager",
     version="0.0.1",
     author="Jacob Williams",
     author_email="jacobaw@gmail.com",
