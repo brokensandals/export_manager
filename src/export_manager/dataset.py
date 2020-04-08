@@ -13,7 +13,7 @@ DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
 # interval = "1 day"
 """
 
-INITIAL_METRICS_CSV = "timestamp,files,bytes"
+INITIAL_METRICS_CSV = "id,files,bytes"
 
 
 class DatasetDir:
