@@ -189,7 +189,13 @@ class ExportDir:
         dest = self.incomplete_data_path.joinpath(ver)
         env = {'EXPORT_DEST': str(dest),
                'EXPORT_DIR': str(self.path)}
-        subprocess.check_call(cmd, shell=True, env=env)
+
+        outpath = self.log_path.joinpath(f'{ver}.out')
+        errpath = self.log_path.joinpath(f'{ver}.out')
+        with open(outpath, 'w') as out:
+            with open(errpath, 'w') as err:
+                subprocess.check_call(cmd, shell=True, env=env,
+                                      stdout=out, stderr=err)
         oldpath = find_data_path(self.incomplete_data_path, ver)
         if not oldpath:
             raise Exception(f'export did not produce data in {dest}*')
