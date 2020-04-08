@@ -43,7 +43,7 @@ class DatasetDir:
                 Repo.init(str(self.path))
             gitignore_path = self.path.joinpath('.gitignore')
             if not gitignore_path.exists():
-                gitignore_path.write_bytes(DEFAULT_GITIGNORE)
+                gitignore_path.write_text(DEFAULT_GITIGNORE)
             repo = Repo(str(self.path))
             index = repo.index
             index.add(['.gitignore', 'config.toml', 'metrics.csv'])
