@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from git import Repo
 from pathlib import Path
+import pytest
 from tempfile import TemporaryDirectory
 from export_manager import dataset
 from export_manager.dataset import DatasetDir
@@ -102,3 +103,32 @@ def test_update_metrics():
             },
         }
         assert dsd.read_metrics() == expected
+
+
+def test_run_export_no_cmd():
+    with tempdatasetdir() as dsd:
+        dsd.run_export()
+        assert sum(1 for x in dsd.data_path.glob('*')) == 0
+        assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
+
+
+def test_run_export_no_data():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'cmd': 'echo hi && (echo muahaha >&2)'})
+        with pytest.raises(Exception):
+            dsd.run_export()
+        assert sum(1 for x in dsd.data_path.glob('*')) == 0
+        assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
+        assert next(dsd.log_path.glob('*.out')).read_text() == 'hi\n'
+        assert next(dsd.log_path.glob('*.err')).read_text() == 'muahaha\n'
+
+
+def test_run_export():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'cmd': 'echo hi > $PARCEL_DEST.txt'})
+        parcel_id = dsd.run_export()
+        assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
+        assert (dsd.data_path.joinpath(f'{parcel_id}.txt').read_text()
+                == 'hi\n')
+        assert dsd.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
+        assert dsd.log_path.joinpath(f'{parcel_id}.err').read_text() == ''

@@ -1,7 +1,9 @@
 import csv
+from datetime import datetime
 from git import Repo
 from operator import itemgetter
 from pathlib import Path
+import subprocess
 import toml
 
 
@@ -17,6 +19,16 @@ DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
 """
 
 INITIAL_METRICS_CSV = "parcel_id,files,bytes"
+
+
+def find_parcel_data_path(parent, parcel_id):
+    matches = list(parent.glob(f'{parcel_id}*'))
+    if not matches:
+        return None
+    if len(matches) > 1:
+        raise Exception(
+            f'multiple data files or dirs exist for {parcel_id} in {parent}')
+    return matches[0]
 
 
 class DatasetDir:
@@ -54,6 +66,10 @@ class DatasetDir:
         if not self.config_path.is_file():
             raise Exception(f'{self.config_path} is not a file')
         return toml.load(self.config_path)
+
+    def write_config(self, cfg):
+        with open(self.config_path, 'w') as file:
+            toml.dump(cfg, file)
 
     def is_git(self):
         return self.read_config().get('git', False)
@@ -96,3 +112,35 @@ class DatasetDir:
 
         self.commit('[export_manager] update metrics', ['metrics.csv'])
 
+    def run_export(self):
+        cfg = self.read_config()
+        cmd = cfg.get('cmd', None)
+        if not cmd:
+            return
+
+        self.incomplete_path.mkdir(exist_ok=True)
+        self.log_path.mkdir(exist_ok=True)
+
+        parcel_id = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
+        dest = self.incomplete_path.joinpath(parcel_id)
+        outpath = self.log_path.joinpath(f'{parcel_id}.out')
+        errpath = self.log_path.joinpath(f'{parcel_id}.err')
+        env = {'PARCEL_DEST': str(dest),
+               'DATASET_PATH': str(self.path)}
+
+        with open(outpath, 'w') as out:
+            with open(errpath, 'w') as err:
+                subprocess.check_call(cmd, shell=True, env=env,
+                                      stdout=out, stderr=err)
+
+        oldpath = find_parcel_data_path(self.incomplete_path, parcel_id)
+        if not oldpath:
+            raise Exception(f'export did not produce data in {dest}')
+        newpath = self.data_path.joinpath(oldpath.name)
+        self.data_path.mkdir(exist_ok=True)
+        oldpath.rename(newpath)
+
+        self.commit(f'[export_manager] add parcel data for {parcel_id}',
+                    [str(newpath)])
+
+        return parcel_id
