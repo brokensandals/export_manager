@@ -57,12 +57,13 @@ Setup:
 4. Install dependencies:
     ```bash
    pip install .
+   pip install -r requirements-dev.txt
     ```
 
 To run unit tests:
 
 ```bash
-PYTHONPATH=src python -m unittest discover tests
+pytest
 ```
 
 To run the CLI:
