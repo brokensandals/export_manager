@@ -3,6 +3,8 @@ from datetime import datetime
 from git import Repo
 from operator import itemgetter
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import toml
 
@@ -19,6 +21,8 @@ DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
 """
 
 INITIAL_METRICS_CSV = "parcel_id,files,bytes"
+
+PARCEL_ID_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 
 
 def find_parcel_data_path(parent, parcel_id):
@@ -74,10 +78,13 @@ class DatasetDir:
     def is_git(self):
         return self.read_config().get('git', False)
 
-    def commit(self, message, paths):
+    def commit(self, message, add=[], *, rm=[]):
         if self.is_git():
             repo = Repo(str(self.path))
-            repo.index.add(paths)
+            if add:
+                repo.index.add(add)
+            if rm:
+                repo.index.remove(rm, r=True)
             if repo.is_dirty():
                 repo.index.commit(message)
 
@@ -144,3 +151,47 @@ class DatasetDir:
                     [str(newpath)])
 
         return parcel_id
+
+    def find_parcel_ids(self):
+        ids = set()
+        ids.update(p.stem for p in self.data_path.glob('*'))
+        ids.update(p.stem for p in self.incomplete_path.glob('*'))
+        ids.update(p.stem for p in self.log_path.glob('*.*'))
+        ids = (i for i in ids if PARCEL_ID_FORMAT.match(i))
+        return sorted(ids)
+
+    def clean(self):
+        cfg = self.read_config()
+        keep = cfg.get('keep', None)
+        if not keep:
+            return
+
+        git_rm = []
+
+        ids = self.find_parcel_ids()
+        while len(ids) > keep:
+            for path in self.log_path.glob(f'{ids[0]}.*'):
+                path.unlink()
+
+            # TODO: it would probably be best to ensure we keep a certain
+            #   number of complete parcels regardless of how many incomplete
+            #   parcels there are
+            incomplete = find_parcel_data_path(self.incomplete_path, ids[0])
+            if incomplete:
+                if incomplete.is_file():
+                    incomplete.unlink()
+                if incomplete.is_dir():
+                    shutil.rmtree(incomplete)
+
+            complete = find_parcel_data_path(self.data_path, ids[0])
+            if complete:
+                git_rm.append(str(complete))
+                if complete.is_file():
+                    complete.unlink()
+                if complete.is_dir():
+                    shutil.rmtree(complete)
+
+            ids.pop(0)
+
+        if git_rm:
+            self.commit('[export_manager] clean', rm=git_rm)

@@ -132,3 +132,61 @@ def test_run_export():
                 == 'hi\n')
         assert dsd.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
         assert dsd.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
+
+
+def test_clean_no_keep():
+    with tempdatasetdir() as dsd:
+        for i in range(10):
+            dsd.data_path.joinpath(f'2000-01-02T03040{i}Z.txt').touch()
+        dsd.clean()
+        assert sum(1 for x in dsd.data_path.glob('*.txt')) == 10
+
+
+def test_clean():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'keep': 4})
+        dsd.incomplete_path.mkdir(exist_ok=True)
+        dsd.log_path.mkdir(exist_ok=True)
+        for i in range(10):
+            p_id = f'2000-01-02T03040{i}Z'
+            if i % 2 == 0:
+                dsd.data_path.joinpath(f'{p_id}.txt').touch()
+            else:
+                dsd.incomplete_path.joinpath(f'{p_id}.txt').touch()
+            if i % 3 == 0:
+                dsd.log_path.joinpath(f'{p_id}.out').touch()
+            if i % 4 == 0:
+                dsd.log_path.joinpath(f'{p_id}.err').touch()
+        dsd.clean()
+        assert (list(p.name for p in dsd.data_path.glob('*'))
+                == ['2000-01-02T030406Z.txt', '2000-01-02T030408Z.txt'])
+        assert (list(p.name for p in dsd.incomplete_path.glob('*'))
+                == ['2000-01-02T030407Z.txt', '2000-01-02T030409Z.txt'])
+        assert (list(p.name for p in dsd.log_path.glob('*.out'))
+                == ['2000-01-02T030406Z.out', '2000-01-02T030409Z.out'])
+        assert (list(p.name for p in dsd.log_path.glob('*.err'))
+                == ['2000-01-02T030408Z.err'])
+
+
+def test_clean_git():
+    with tempdatasetdir(git=True) as dsd:
+        dsd.write_config({'keep': 4, 'git': True})
+        dsd.incomplete_path.mkdir(exist_ok=True)
+        dsd.log_path.mkdir(exist_ok=True)
+        repo = Repo(str(dsd.path))
+        for i in range(10):
+            p_id = f'2000-01-02T03040{i}Z'
+            dsd.data_path.joinpath(f'{p_id}.txt').touch()
+            dsd.incomplete_path.joinpath(f'{p_id}.txt').touch()
+            dsd.log_path.joinpath(f'{p_id}.out').touch()
+            dsd.log_path.joinpath(f'{p_id}.err').touch()
+        repo.index.add(['data'])
+        repo.index.commit('commit data for test')
+        assert len(repo.head.commit.tree['data'].blobs) == 10
+        dsd.clean()
+        assert (dsd.find_parcel_ids() ==
+                ['2000-01-02T030406Z',
+                 '2000-01-02T030407Z',
+                 '2000-01-02T030408Z',
+                 '2000-01-02T030409Z'])
+        assert len(repo.head.commit.tree['data'].blobs) == 4
