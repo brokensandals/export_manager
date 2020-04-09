@@ -238,7 +238,7 @@ class DatasetAccessor:
     def parcel_accessors(self):
         return [ParcelAccessor(self, pid) for pid in self.find_parcel_ids()]
 
-    def is_due(self, margin = timedelta(minutes=5)):
+    def is_due(self, margin=timedelta(minutes=5)):
         cfg = self.read_config()
         delta_str = cfg.get('interval', None)
         if not delta_str:

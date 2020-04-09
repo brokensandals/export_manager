@@ -2,6 +2,7 @@ import argparse
 import sys
 from export_manager import dataset
 from export_manager.dataset import DatasetAccessor
+from export_manager.report import Report
 
 
 def clean(args):
@@ -55,6 +56,13 @@ def process(args):
     return status
 
 
+def report(args):
+    dsas = [DatasetAccessor(path) for path in args.path]
+    r = Report(dsas)
+    print(r.plaintext())
+    return 0
+
+
 def reprocess_metrics(args):
     for path in args.path:
         ds = DatasetAccessor(path)
@@ -98,6 +106,10 @@ def main(args=None):
                                      'and perform cleaning, where needed')
     p_process.add_argument('path', nargs='+', help='dataset dir path')
     p_process.set_defaults(func=process)
+
+    p_report = subs.add_parser('report', help='summarize export activity')
+    p_report.add_argument('path', nargs='+', help='dataset dir path')
+    p_report.set_defaults(func=report)
 
     p_reprocess_metrics = subs.add_parser('reprocess_metrics',
                                           help='update metrics for parcels')

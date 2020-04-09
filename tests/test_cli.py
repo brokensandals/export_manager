@@ -94,6 +94,18 @@ def test_process():
         assert sorted([f.stem for f in path.glob('data/*.txt')]) == times[6:]
 
 
+def test_report(capsys):
+    with TemporaryDirectory() as rawpath:
+        path = Path(rawpath)
+        path1 = path.joinpath('alpha')
+        path2 = path.joinpath('beta')
+        assert cli.main(['init', str(path1), str(path2)]) == 0
+        path1.joinpath('data', '2000-01-01T000000Z.txt').touch()
+        assert cli.main(['report', str(path1), str(path2)]) == 0
+        cap = capsys.readouterr()
+        assert 'WARNING: no complete parcels for: beta\n' in cap.out
+
+
 def test_reprocess_metrics():
     with TemporaryDirectory() as rawpath:
         assert cli.main(['init', rawpath]) == 0
