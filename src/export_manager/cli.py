@@ -4,6 +4,12 @@ from export_manager import dataset
 from export_manager.dataset import DatasetDir
 
 
+def clean(args):
+    for path in args.path:
+        DatasetDir(path).clean()
+    return 0
+
+
 def init(args):
     for path in args.path:
         DatasetDir(path).initialize(git=args.git)
@@ -46,6 +52,10 @@ def main(args=None):
     parser.set_defaults(func=None)
 
     subs = parser.add_subparsers(title='Commands')
+
+    p_clean = subs.add_parser('clean', help='perform cleaning where needed')
+    p_clean.add_argument('path', nargs='+', help='dataset dir path')
+    p_clean.set_defaults(func=clean)
 
     p_init = subs.add_parser('init', help='initialize new dataset dirs')
     p_init.add_argument('path', nargs='+', help='dataset dir path')

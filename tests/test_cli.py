@@ -5,6 +5,18 @@ from tempfile import TemporaryDirectory
 from export_manager import cli
 
 
+def test_clean():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text('keep = 5')
+        ids = [f'2001-01-0{i}T000000Z' for i in range(10)]
+        for pid in ids:
+            path.joinpath('data', f'{pid}.txt').touch()
+        assert cli.main(['clean', rawpath]) == 0
+        assert sum(1 for p in path.glob('data/*.txt')) == 5
+
+
 def test_init():
     with TemporaryDirectory() as rawpath:
         path1 = Path(rawpath).joinpath('alpha')
