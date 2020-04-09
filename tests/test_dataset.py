@@ -289,3 +289,57 @@ def test_is_due_true():
             pid = dt.strftime('%Y-%m-%dT%H%M%SZ')
             dsd.data_path.joinpath(f'{pid}.txt').touch()
         assert dsd.is_due()
+
+
+def test_parsel_accessors():
+    with tempdatasetdir() as dsd:
+        dsd.incomplete_path.mkdir(exist_ok=True)
+        dsd.log_path.mkdir(exist_ok=True)
+
+        id1 = '2001-01-01T010101Z'
+        data1 = dsd.data_path.joinpath(f'{id1}.txt')
+        out1 = dsd.log_path.joinpath(f'{id1}.out')
+        err1 = dsd.log_path.joinpath(f'{id1}.err')
+        data1.touch()
+        out1.touch()
+        err1.touch()
+
+        id2 = '2002-02-02T020202Z'
+        incomplete2 = dsd.incomplete_path.joinpath(f'{id2}.txt')
+        incomplete2.touch()
+
+        id3 = '2003-03-03T030303Z'
+        data3 = dsd.data_path.joinpath(id3)
+        data3.mkdir()
+
+        id4 = '2004-04-04T040404Z'
+        err4 = dsd.log_path.joinpath(f'{id4}.err')
+        err4.touch()
+
+        parcels = dsd.parcel_accessors()
+        assert len(parcels) == 4
+        assert parcels[0].parcel_id == id1
+        assert parcels[0].is_complete()
+        assert parcels[0].find_data() == data1
+        assert parcels[0].find_incomplete() is None
+        assert parcels[0].find_stdout() == out1
+        assert parcels[0].find_stderr() == err1
+        assert parcels[1].parcel_id == id2
+        assert not parcels[1].is_complete()
+        assert parcels[1].find_data() is None
+        assert parcels[1].find_incomplete() == incomplete2
+        assert parcels[1].find_stdout() is None
+        assert parcels[1].find_stderr() is None
+        assert parcels[2].parcel_id == id3
+        assert parcels[2].is_complete()
+        assert parcels[2].find_data() == data3
+        assert parcels[2].find_incomplete() is None
+        assert parcels[2].find_stdout() is None
+        assert parcels[2].find_stderr() is None
+        assert parcels[3].parcel_id == id4
+        assert not parcels[3].is_complete()
+        assert parcels[3].find_data() is None
+        assert parcels[3].find_incomplete() is None
+        assert parcels[3].find_stdout() is None
+        assert parcels[3].find_stderr() == err4
+

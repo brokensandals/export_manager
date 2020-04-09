@@ -43,6 +43,35 @@ def find_parcel_data_path(parent, parcel_id):
     return matches[0]
 
 
+class ParcelAccessor:
+    def __init__(self, dataset_dir, parcel_id):
+        self.dataset_dir = dataset_dir
+        self.parcel_id = parcel_id
+
+    def find_data(self):
+        return find_parcel_data_path(
+            self.dataset_dir.data_path, self.parcel_id)
+
+    def find_incomplete(self):
+        return find_parcel_data_path(
+            self.dataset_dir.incomplete_path, self.parcel_id)
+
+    def is_complete(self):
+        return bool(self.find_data())
+
+    def find_stdout(self):
+        path = self.dataset_dir.log_path.joinpath(f'{self.parcel_id}.out')
+        if path.is_file():
+            return path
+        return None
+
+    def find_stderr(self):
+        path = self.dataset_dir.log_path.joinpath(f'{self.parcel_id}.err')
+        if path.is_file():
+            return path
+        return None
+
+
 class DatasetDir:
     def __init__(self, path):
         self.path = Path(path)
@@ -201,6 +230,12 @@ class DatasetDir:
         ids = (i for i in ids if PARCEL_ID_FORMAT.match(i))
         return sorted(ids)
 
+    def parcel_accessor(self, parcel_id):
+        return ParcelAccessor(self, parcel_id)
+
+    def parcel_accessors(self):
+        return [ParcelAccessor(self, pid) for pid in self.find_parcel_ids()]
+
     def is_due(self, margin = timedelta(minutes=5)):
         cfg = self.read_config()
         delta_str = cfg.get('interval', None)
@@ -223,22 +258,27 @@ class DatasetDir:
 
         git_rm = []
 
-        ids = self.find_parcel_ids()
-        while len(ids) > keep:
-            for path in self.log_path.glob(f'{ids[0]}.*'):
-                path.unlink()
+        parcels = self.parcel_accessors()
+        while len(parcels) > keep:
+            out_path = parcels[0].find_stdout()
+            if out_path:
+                out_path.unlink()
+
+            err_path = parcels[0].find_stderr()
+            if err_path:
+                err_path.unlink()
 
             # TODO: it would probably be best to ensure we keep a certain
             #   number of complete parcels regardless of how many incomplete
             #   parcels there are
-            incomplete = find_parcel_data_path(self.incomplete_path, ids[0])
+            incomplete = parcels[0].find_incomplete()
             if incomplete:
                 if incomplete.is_file():
                     incomplete.unlink()
                 if incomplete.is_dir():
                     shutil.rmtree(incomplete)
 
-            complete = find_parcel_data_path(self.data_path, ids[0])
+            complete = parcels[0].find_data()
             if complete:
                 git_rm.append(str(complete))
                 if complete.is_file():
@@ -246,7 +286,7 @@ class DatasetDir:
                 if complete.is_dir():
                     shutil.rmtree(complete)
 
-            ids.pop(0)
+            parcels.pop(0)
 
         if git_rm:
             self.commit('[export_manager] clean', rm=git_rm)
