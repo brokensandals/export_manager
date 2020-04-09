@@ -44,35 +44,35 @@ def find_parcel_data_path(parent, parcel_id):
 
 
 class ParcelAccessor:
-    def __init__(self, dataset_dir, parcel_id):
-        self.dataset_dir = dataset_dir
+    def __init__(self, dataset_accessor, parcel_id):
+        self.dataset_accessor = dataset_accessor
         self.parcel_id = parcel_id
 
     def find_data(self):
         return find_parcel_data_path(
-            self.dataset_dir.data_path, self.parcel_id)
+            self.dataset_accessor.data_path, self.parcel_id)
 
     def find_incomplete(self):
         return find_parcel_data_path(
-            self.dataset_dir.incomplete_path, self.parcel_id)
+            self.dataset_accessor.incomplete_path, self.parcel_id)
 
     def is_complete(self):
         return bool(self.find_data())
 
     def find_stdout(self):
-        path = self.dataset_dir.log_path.joinpath(f'{self.parcel_id}.out')
+        path = self.dataset_accessor.log_path.joinpath(f'{self.parcel_id}.out')
         if path.is_file():
             return path
         return None
 
     def find_stderr(self):
-        path = self.dataset_dir.log_path.joinpath(f'{self.parcel_id}.err')
+        path = self.dataset_accessor.log_path.joinpath(f'{self.parcel_id}.err')
         if path.is_file():
             return path
         return None
 
 
-class DatasetDir:
+class DatasetAccessor:
     def __init__(self, path):
         self.path = Path(path)
         self.config_path = self.path.joinpath('config.toml')

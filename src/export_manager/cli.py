@@ -1,33 +1,33 @@
 import argparse
 import sys
 from export_manager import dataset
-from export_manager.dataset import DatasetDir
+from export_manager.dataset import DatasetAccessor
 
 
 def clean(args):
     for path in args.path:
-        DatasetDir(path).clean()
+        DatasetAccessor(path).clean()
     return 0
 
 
 def export(args):
     for path in args.path:
         parcel_id = args.parcel_id or dataset.new_parcel_id()
-        ds = DatasetDir(path)
+        ds = DatasetAccessor(path)
         ds.run_export(parcel_id)
     return 0
 
 
 def init(args):
     for path in args.path:
-        DatasetDir(path).initialize(git=args.git)
+        DatasetAccessor(path).initialize(git=args.git)
     return 0
 
 
 def process(args):
     status = 0
     for path in args.path:
-        ds = DatasetDir(path)
+        ds = DatasetAccessor(path)
 
         if ds.is_due():
             parcel_id = dataset.new_parcel_id()
@@ -57,7 +57,7 @@ def process(args):
 
 def reprocess_metrics(args):
     for path in args.path:
-        ds = DatasetDir(path)
+        ds = DatasetAccessor(path)
         updates = {}
         if args.parcel_id:
             updates[args.parcel_id] = ds.collect_metrics(args.parcel_id)
