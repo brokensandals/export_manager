@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+from datetime import timedelta
 from git import Repo
 from operator import itemgetter
 from pathlib import Path
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import toml
 from export_manager import fsutil
+from export_manager import interval
 
 
 DEFAULT_GITIGNORE = """.DS_Store
@@ -189,6 +191,20 @@ class DatasetDir:
         ids.update(p.stem for p in self.log_path.glob('*.*'))
         ids = (i for i in ids if PARCEL_ID_FORMAT.match(i))
         return sorted(ids)
+
+    def is_due(self, margin = timedelta(minutes=5)):
+        cfg = self.read_config()
+        delta_str = cfg.get('interval', None)
+        if not delta_str:
+            return False
+        delta = interval.parse_delta(delta_str) - margin
+
+        ids = self.find_parcel_ids()
+        if not ids:
+            return True
+        last = datetime.strptime(ids[-1], '%Y-%m-%dT%H%M%S%z')
+        now = datetime.now(last.tzinfo)
+        return (now - last) >= delta
 
     def clean(self):
         cfg = self.read_config()

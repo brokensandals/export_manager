@@ -1,4 +1,6 @@
 from contextlib import contextmanager
+from datetime import datetime
+from datetime import timedelta
 from git import Repo
 from pathlib import Path
 import pytest
@@ -251,3 +253,38 @@ def test_collect_metrics_error():
             'files': '1',
             'lines': 'ERROR',
         }
+
+
+def test_is_due_no_interval():
+    with tempdatasetdir() as dsd:
+        assert not dsd.is_due()
+
+
+def test_is_due_no_parcels():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'interval': '1000 days'})
+        assert dsd.is_due()
+
+
+def test_is_due_false():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'interval': '1 hour'})
+        old = datetime.strptime('2000-01-02T030405Z', '%Y-%m-%dT%H%M%S%z')
+        now = datetime.now(old.tzinfo)
+        last = now - timedelta(minutes=30)
+        for dt in [old, last]:
+            pid = dt.strftime('%Y-%m-%dT%H%M%SZ')
+            dsd.data_path.joinpath(f'{pid}.txt').touch()
+        assert not dsd.is_due()
+
+
+def test_is_due_true():
+    with tempdatasetdir() as dsd:
+        dsd.write_config({'interval': '1 hour'})
+        old = datetime.strptime('2000-01-02T030405Z', '%Y-%m-%dT%H%M%S%z')
+        now = datetime.now(old.tzinfo)
+        last = now - timedelta(minutes=57)  # within the 5-minute margin
+        for dt in [old, last]:
+            pid = dt.strftime('%Y-%m-%dT%H%M%SZ')
+            dsd.data_path.joinpath(f'{pid}.txt').touch()
+        assert dsd.is_due()
