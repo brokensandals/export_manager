@@ -222,7 +222,7 @@ class DatasetAccessor:
         oldpath.rename(newpath)
 
         self.commit(f'[export_manager] add parcel data for {parcel_id}',
-                    [str(newpath)])
+                    [str(newpath.relative_to(self.path))])
 
     def find_parcel_ids(self):
         ids = set()
@@ -282,7 +282,7 @@ class DatasetAccessor:
 
             complete = parcels[0].find_data()
             if complete:
-                git_rm.append(str(complete))
+                git_rm.append(str(complete.relative_to(self.path)))
                 if complete.is_file():
                     complete.unlink()
                 if complete.is_dir():
