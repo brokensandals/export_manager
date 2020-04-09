@@ -6,14 +6,11 @@ This tool helps manage automatic backups of data from cloud services.
 
 1. Install python3 and pip
 2. `pip install export_manager`
-3. Create a directory to hold all your exports, for example:
+3. Use the tool to set up directories for each dataset:
     ```bash
-    mkdir ~/exports
-    ```
-4. Use the tool to set up subdirectories for each data source:
-    ```bash
-   export_manager --base ~/exports new todoist
-   export_manager --base ~/exports new goodreads
+   mkdir ~/exports
+   export_manager init ~/exports/todoist
+   export_manager init ~/exports/goodreads
    # etc. The names can be anything you want, those are just examples.
     ```
     This will create a directory structure like this:
@@ -23,24 +20,28 @@ This tool helps manage automatic backups of data from cloud services.
            config.toml
            metrics.csv
            data/
+           incomplete/
+           log/
        goodreads/
            config.toml
            metrics.csv
            data/
+           incomplete/
+           log/
    ```
-5. Edit the `config.toml` file in each subdirectory to specify the schedule and the command to run.
+4. Edit the `config.toml` file in each subdirectory to specify the schedule and the command to run.
    For example, if you install [middling\_export\_todoist][middling_export_todoist] you could use the following config to export data from Todoist:
     ```toml
-    # Command to invoke. $EXPORT_DEST will be set to ~/exports/todoist/data/DATETIME
-    exportcmd = "TODOIST_API_TOKEN=your_token middling_export_todoist full_sync > $EXPORT_DEST.json"
+    # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
+    exportcmd = "TODOIST_API_TOKEN=your_token middling_export_todoist full_sync > $PARCEL_PATH.json"
     # Only get a new export if the last one is at least 1 day old.
     interval = "1 day"
     # Only keep the most recent 5 exports.
     # If you don't specify this, export_manager will not delete old exports.
     keep = 5
     ```
-6. Run `export_manager -b ~/exports process` to run all the exports and cleanups that are due.
-   You should have a cron or launchd job run this periodically.
+5. Run `export_manager process ~/exports/*` to run all the exports and cleanups that are due.
+   This is intended to be run periodically by a cron or launchd job.
 
 ## Development
 

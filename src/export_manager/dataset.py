@@ -84,6 +84,8 @@ class DatasetAccessor:
     def initialize(self, *, git=False):
         self.path.mkdir(exist_ok=True, parents=True)
         self.data_path.mkdir(exist_ok=True)
+        self.incomplete_path.mkdir(exist_ok=True)
+        self.log_path.mkdir(exist_ok=True)
 
         if not self.config_path.exists():
             config = DEFAULT_CONFIG_TOML

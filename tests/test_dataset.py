@@ -148,8 +148,6 @@ def test_clean_no_keep():
 def test_clean():
     with tempdatasetdir() as dsa:
         dsa.write_config({'keep': 4})
-        dsa.incomplete_path.mkdir(exist_ok=True)
-        dsa.log_path.mkdir(exist_ok=True)
         for i in range(10):
             p_id = f'2000-01-02T03040{i}Z'
             if i % 2 == 0:
@@ -174,8 +172,6 @@ def test_clean():
 def test_clean_git():
     with tempdatasetdir(git=True) as dsa:
         dsa.write_config({'keep': 4, 'git': True})
-        dsa.incomplete_path.mkdir(exist_ok=True)
-        dsa.log_path.mkdir(exist_ok=True)
         repo = Repo(str(dsa.path))
         for i in range(10):
             p_id = f'2000-01-02T03040{i}Z'
@@ -204,7 +200,6 @@ def test_collect_metrics_no_data():
 def test_collect_metrics_incomplete():
     with tempdatasetdir() as dsa:
         pid = '2000-01-02T030405Z'
-        dsa.incomplete_path.mkdir(exist_ok=True)
         dsa.incomplete_path.joinpath(f'{pid}.txt').write_text('hello')
         assert dsa.collect_metrics(pid) == {
             'parcel_id': pid,
@@ -293,9 +288,6 @@ def test_is_due_true():
 
 def test_parsel_accessors():
     with tempdatasetdir() as dsa:
-        dsa.incomplete_path.mkdir(exist_ok=True)
-        dsa.log_path.mkdir(exist_ok=True)
-
         id1 = '2001-01-01T010101Z'
         data1 = dsa.data_path.joinpath(f'{id1}.txt')
         out1 = dsa.log_path.joinpath(f'{id1}.out')
