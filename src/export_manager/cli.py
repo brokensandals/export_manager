@@ -55,6 +55,20 @@ def process(args):
     return status
 
 
+def reprocess_metrics(args):
+    for path in args.path:
+        ds = DatasetDir(path)
+        updates = {}
+        if args.parcel_id:
+            updates[args.parcel_id] = ds.collect_metrics(args.parcel_id)
+        else:
+            updates = {}
+            for parcel_id in ds.find_parcel_ids():
+                updates[parcel_id] = ds.collect_metrics(parcel_id)
+        ds.update_metrics(updates)
+    return 0
+
+
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.set_defaults(func=None)
@@ -84,6 +98,15 @@ def main(args=None):
                                      'and perform cleaning, where needed')
     p_process.add_argument('path', nargs='+', help='dataset dir path')
     p_process.set_defaults(func=process)
+
+    p_reprocess_metrics = subs.add_parser('reprocess_metrics',
+                                          help='update metrics for parcels')
+    p_reprocess_metrics.add_argument(
+        'path', nargs='+', help='dataset dir path')
+    p_reprocess_metrics.add_argument(
+        '-p', '--parcel_id', nargs='?',
+        help='only reprocess specific parcel (format: yyyy-mm-ddThhmmssZ)')
+    p_reprocess_metrics.set_defaults(func=reprocess_metrics)
 
     args = parser.parse_args(args)
     if not args.func:

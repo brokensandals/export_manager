@@ -112,16 +112,21 @@ class DatasetDir:
 
     def update_metrics(self, updates):
         metrics = self.read_metrics()
+        field_order = []
         fields = set()
         if metrics:
-            fields.update(next(iter(metrics.values())).keys())
+            field_order = list(next(iter(metrics.values())).keys())
+            fields.update(field_order)
         for row in updates.values():
-            fields.update(row.keys())
+            for key in row.keys():
+                if key not in fields:
+                    field_order.append(key)
+                    fields.add(key)
             metrics[row['parcel_id']] = row
         rows = sorted(metrics.values(), key=itemgetter('parcel_id'))
 
         with open(self.metrics_path, 'w') as file:
-            writer = csv.DictWriter(file, fieldnames=fields)
+            writer = csv.DictWriter(file, fieldnames=field_order)
             writer.writeheader()
             writer.writerows(rows)
 
@@ -137,8 +142,8 @@ class DatasetDir:
             path = find_parcel_data_path(self.incomplete_path, parcel_id)
 
         if path:
-            results['bytes'] = str(fsutil.total_size_bytes(path))
             results['files'] = str(fsutil.total_file_count(path))
+            results['bytes'] = str(fsutil.total_size_bytes(path))
 
             cfg = self.read_config()
             for name in cfg.get('metrics', {}):

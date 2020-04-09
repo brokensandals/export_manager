@@ -92,3 +92,32 @@ def test_process():
         with freeze_time('2000-01-09T120000Z'):
             assert cli.main(['process', rawpath]) == 0
         assert sorted([f.stem for f in path.glob('data/*.txt')]) == times[6:]
+
+
+def test_reprocess_metrics():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('data', '2000-01-02T030405Z.txt').write_text('hi!')
+        path.joinpath('data', '2000-01-03T030405Z.txt').write_text('hola!')
+        assert cli.main(['reprocess_metrics', rawpath]) == 0
+        expected = """parcel_id,success,files,bytes
+2000-01-02T030405Z,Y,1,3
+2000-01-03T030405Z,Y,1,5
+"""
+        assert path.joinpath('metrics.csv').read_text() == expected
+
+
+def test_reprocess_metrics_given_parcel():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('data', '2000-01-02T030405Z.txt').write_text('hi!')
+        path.joinpath('data', '2000-01-03T030405Z.txt').write_text('hola!')
+        assert (cli.main(['reprocess_metrics', '-p', '2000-01-02T030405Z',
+                          rawpath])
+                == 0)
+        expected = """parcel_id,success,files,bytes
+2000-01-02T030405Z,Y,1,3
+"""
+        assert path.joinpath('metrics.csv').read_text() == expected
