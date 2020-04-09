@@ -19,7 +19,7 @@ log/
 /secrets*
 """
 
-DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
+DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_PATH.txt"
 # keep = 5
 # interval = "1 day"
 """
@@ -27,6 +27,10 @@ DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
 INITIAL_METRICS_CSV = "parcel_id,success,files,bytes"
 
 PARCEL_ID_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
+
+
+def new_parcel_id():
+    return datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
 
 
 def find_parcel_data_path(parent, parcel_id):
@@ -151,7 +155,10 @@ class DatasetDir:
 
         return results
 
-    def run_export(self):
+    def run_export(self, parcel_id):
+        if not PARCEL_ID_FORMAT.match(parcel_id):
+            raise Exception(f'invalid parcel_id: {parcel_id}')
+
         cfg = self.read_config()
         cmd = cfg.get('cmd', None)
         if not cmd:
@@ -160,11 +167,10 @@ class DatasetDir:
         self.incomplete_path.mkdir(exist_ok=True)
         self.log_path.mkdir(exist_ok=True)
 
-        parcel_id = datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
         dest = self.incomplete_path.joinpath(parcel_id)
         outpath = self.log_path.joinpath(f'{parcel_id}.out')
         errpath = self.log_path.joinpath(f'{parcel_id}.err')
-        env = {'PARCEL_DEST': str(dest),
+        env = {'PARCEL_PATH': str(dest),
                'DATASET_PATH': str(self.path)}
 
         with open(outpath, 'w') as out:
@@ -181,8 +187,6 @@ class DatasetDir:
 
         self.commit(f'[export_manager] add parcel data for {parcel_id}',
                     [str(newpath)])
-
-        return parcel_id
 
     def find_parcel_ids(self):
         ids = set()

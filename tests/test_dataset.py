@@ -109,7 +109,7 @@ def test_update_metrics():
 
 def test_run_export_no_cmd():
     with tempdatasetdir() as dsd:
-        dsd.run_export()
+        dsd.run_export(dataset.new_parcel_id())
         assert sum(1 for x in dsd.data_path.glob('*')) == 0
         assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
 
@@ -118,7 +118,7 @@ def test_run_export_no_data():
     with tempdatasetdir() as dsd:
         dsd.write_config({'cmd': 'echo hi && (echo muahaha >&2)'})
         with pytest.raises(Exception):
-            dsd.run_export()
+            dsd.run_export(dataset.new_parcel_id())
         assert sum(1 for x in dsd.data_path.glob('*')) == 0
         assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
         assert next(dsd.log_path.glob('*.out')).read_text() == 'hi\n'
@@ -127,8 +127,9 @@ def test_run_export_no_data():
 
 def test_run_export():
     with tempdatasetdir() as dsd:
-        dsd.write_config({'cmd': 'echo hi > $PARCEL_DEST.txt'})
-        parcel_id = dsd.run_export()
+        dsd.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt'})
+        parcel_id = dataset.new_parcel_id()
+        dsd.run_export(parcel_id)
         assert sum(1 for x in dsd.incomplete_path.glob('*')) == 0
         assert (dsd.data_path.joinpath(f'{parcel_id}.txt').read_text()
                 == 'hi\n')
