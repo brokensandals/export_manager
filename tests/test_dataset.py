@@ -190,3 +190,64 @@ def test_clean_git():
                  '2000-01-02T030408Z',
                  '2000-01-02T030409Z'])
         assert len(repo.head.commit.tree['data'].blobs) == 4
+
+
+def test_collect_metrics_no_data():
+    with tempdatasetdir() as dsd:
+        pid = '2000-01-02T030405Z'
+        assert dsd.collect_metrics(pid) == {'parcel_id': pid, 'success': 'N'}
+
+
+def test_collect_metrics_incomplete():
+    with tempdatasetdir() as dsd:
+        pid = '2000-01-02T030405Z'
+        dsd.incomplete_path.mkdir(exist_ok=True)
+        dsd.incomplete_path.joinpath(f'{pid}.txt').write_text('hello')
+        assert dsd.collect_metrics(pid) == {
+            'parcel_id': pid,
+            'success': 'N',
+            'bytes': '5',
+            'files': '1',
+        }
+
+
+def test_collect_metrics_complete():
+    with tempdatasetdir() as dsd:
+        pid = '2000-01-02T030405Z'
+        dsd.data_path.joinpath(f'{pid}.txt').write_text('hello')
+        assert dsd.collect_metrics(pid) == {
+            'parcel_id': pid,
+            'success': 'Y',
+            'bytes': '5',
+            'files': '1',
+        }
+
+
+def test_collect_metrics_custom():
+    with tempdatasetdir() as dsd:
+        pid = '2000-01-02T030405Z'
+        dsd.data_path.joinpath(f'{pid}.txt').write_text('hello\nhi\nhola\n')
+        dsd.write_config(
+            {'metrics': {'lines': {'cmd': 'wc -l < $PARCEL_PATH'}}})
+        assert dsd.collect_metrics(pid) == {
+            'parcel_id': pid,
+            'success': 'Y',
+            'bytes': '14',
+            'files': '1',
+            'lines': '3',
+        }
+
+
+def test_collect_metrics_error():
+    with tempdatasetdir() as dsd:
+        pid = '2000-01-02T030405Z'
+        dsd.data_path.joinpath(f'{pid}.txt').write_text('hello\nhi\nhola\n')
+        dsd.write_config(
+            {'metrics': {'lines': {'cmd': 'wc -l < $PARCEL_PATH.oops'}}})
+        assert dsd.collect_metrics(pid) == {
+            'parcel_id': pid,
+            'success': 'Y',
+            'bytes': '14',
+            'files': '1',
+            'lines': 'ERROR',
+        }

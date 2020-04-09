@@ -6,7 +6,9 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import toml
+from export_manager import fsutil
 
 
 DEFAULT_GITIGNORE = """.DS_Store
@@ -20,7 +22,7 @@ DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_DEST.txt"
 # interval = "1 day"
 """
 
-INITIAL_METRICS_CSV = "parcel_id,files,bytes"
+INITIAL_METRICS_CSV = "parcel_id,success,files,bytes"
 
 PARCEL_ID_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 
@@ -118,6 +120,34 @@ class DatasetDir:
             writer.writerows(rows)
 
         self.commit('[export_manager] update metrics', ['metrics.csv'])
+
+    def collect_metrics(self, parcel_id):
+        results = {'parcel_id': parcel_id}
+        path = find_parcel_data_path(self.data_path, parcel_id)
+        if path:
+            results['success'] = 'Y'
+        else:
+            results['success'] = 'N'
+            path = find_parcel_data_path(self.incomplete_path, parcel_id)
+
+        if path:
+            results['bytes'] = str(fsutil.total_size_bytes(path))
+            results['files'] = str(fsutil.total_file_count(path))
+
+            cfg = self.read_config()
+            for name in cfg.get('metrics', {}):
+                cmd = cfg['metrics'][name]['cmd']
+                env = {'PARCEL_PATH': str(path),
+                       'DATASET_PATH': str(self.path)}
+                try:
+                    out = subprocess.check_output(cmd, shell=True, env=env)
+                    results[name] = str(out, 'utf-8').strip()
+                except Exception as e:
+                    results[name] = 'ERROR'
+                    print(f'metric {name} failed for {path}', file=sys.stderr)
+                    print(e, file=sys.stderr)
+
+        return results
 
     def run_export(self):
         cfg = self.read_config()
