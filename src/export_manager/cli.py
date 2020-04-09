@@ -10,6 +10,14 @@ def clean(args):
     return 0
 
 
+def export(args):
+    for path in args.path:
+        parcel_id = args.parcel_id or dataset.new_parcel_id()
+        ds = DatasetDir(path)
+        ds.run_export(parcel_id)
+    return 0
+
+
 def init(args):
     for path in args.path:
         DatasetDir(path).initialize(git=args.git)
@@ -56,6 +64,14 @@ def main(args=None):
     p_clean = subs.add_parser('clean', help='perform cleaning where needed')
     p_clean.add_argument('path', nargs='+', help='dataset dir path')
     p_clean.set_defaults(func=clean)
+
+    p_export = subs.add_parser('export', help='run export')
+    p_export.add_argument('path', nargs='+', help='dataset dir path')
+    p_export.add_argument('-p', '--parcel_id', nargs='?',
+                          help='parcel_id for new export '
+                               '(format: yyyy-mm-ddThhmmssZ) '
+                               '(defaults to current timestamp)')
+    p_export.set_defaults(func=export)
 
     p_init = subs.add_parser('init', help='initialize new dataset dirs')
     p_init.add_argument('path', nargs='+', help='dataset dir path')

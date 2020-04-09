@@ -17,6 +17,29 @@ def test_clean():
         assert sum(1 for p in path.glob('data/*.txt')) == 5
 
 
+def test_export():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text(
+            'cmd = "echo hello > $PARCEL_PATH.txt"')
+        with freeze_time('2020-04-01T010203Z'):
+            assert cli.main(['export', rawpath]) == 0
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello\n')
+
+
+def test_export_given_id():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text(
+            'cmd = "echo hello > $PARCEL_PATH.txt"')
+        assert cli.main(['export', '-p', '2015-01-02T030405Z', rawpath]) == 0
+        assert (path.joinpath('data', '2015-01-02T030405Z.txt').read_text()
+                == 'hello\n')
+
+
 def test_init():
     with TemporaryDirectory() as rawpath:
         path1 = Path(rawpath).joinpath('alpha')
