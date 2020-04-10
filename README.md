@@ -1,6 +1,18 @@
 # export\_manager
 
-This tool helps manage automatic backups of data from cloud services.
+This tool helps manage automatic exports/backups of personal data (for example, from cloud services like Todoist or Goodreads).
+
+It handles:
+
+- Running exports according to a schedule (note: export\_manager itself must be run via a scheduler like cron/launchd/etc)
+- Keeping data and logs organized
+- Cleaning up old data
+- Gathering metrics and generating reports to help you see whether your backups are working
+
+Terminology:
+
+- **dataset**: a collection of parcels from a particular source, and related config and metadata
+- **parcel**: data exported on a single occasion (e.g. your Todoist data retrieved on 2020-0215T01:02:03Z) and related metadata
 
 ## Getting Started
 
@@ -30,7 +42,7 @@ This tool helps manage automatic backups of data from cloud services.
            log/
    ```
 4. Edit the `config.toml` file in each subdirectory to specify the schedule and the command to run.
-   For example, if you install [middling\_export\_todoist][middling_export_todoist] you could use the following config to export data from Todoist:
+   For example, if you install [exporteer\_todoist][exporteer\_todoist] you could use the following config to export data from Todoist:
     ```toml
     # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
     exportcmd = "TODOIST_API_TOKEN=your_token middling_export_todoist full_sync > $PARCEL_PATH.json"
@@ -41,7 +53,37 @@ This tool helps manage automatic backups of data from cloud services.
     keep = 5
     ```
 5. Run `export_manager process ~/exports/*` to run all the exports and cleanups that are due.
-   This is intended to be run periodically by a cron or launchd job.
+   Set up a cron or launchd job to run this periodically.
+
+## Metrics and Reports
+
+You shouldn't trust your backups unless you're testing them.
+Testing has to involve some manual action - if it were fully automated, you'd never know if the automation broke.
+But ideally, you'd automate the process of collecting all the evidence to prove that a backup is working, so that all you have to do is periodically look at it and say "yep, looks good."
+
+export\_manager helps with this by providing a report you can generate:
+
+```bash
+export_manager report ~/exports/*
+```
+
+This will:
+
+- Warn you of any obvious problems, such as datasets that are overdue or failing.
+- Tell you when each dataset was most recently exported successfully.
+- Show you metrics about each dataset's most recent successful parcel, and compare them with metrics from 7 days and 180 days ago.
+
+By default, the metrics include the number of bytes and number of files in the parcel when it was produced.
+
+You can also define custom metrics for each dataset in the `config.toml` file.
+For example, for json data, you might use [jq](https://stedolan.github.io/jq/) to count some elements of the json.
+The following config counts the number of tasks in a todoist sync parcels configured above:
+
+```toml
+metrics.tasks.cmd = "jq '.items | length' $PARCEL_PATH"
+```
+
+The `process` command gathers all the configured metrics every time a new parcel is produced and stores them in `metrics.csv`.
 
 ## Development
 
