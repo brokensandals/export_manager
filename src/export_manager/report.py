@@ -1,11 +1,25 @@
 from export_manager import dataset
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 
 
 HIGHLIGHT_DELTAS = [
     timedelta(days=7),
     timedelta(days=180),
 ]
+
+
+def text_table(header, rows, indent=''):
+    widths = [max([len(r[i]) for r in [header] + rows])
+              for i in range(len(header))]
+    fmt = '  '.join('{:<' + str(w) + '}' for w in widths) + '\n'
+    hrow = fmt.format(*header)
+    divrow = ('-' * len(hrow)) + '\n'
+    result = indent + hrow + indent + divrow
+    for row in rows:
+        result += indent + fmt.format(*row)
+    return result
 
 
 class Report:
@@ -117,5 +131,17 @@ class Report:
                 pid += ' (GONE)'
             result += (('{:<' + str(namewidth) + '}  {}\n')
                        .format(dsa.path.name, pid))
+
+        for dsa in self.highlighted_metrics:
+            metrics = self.highlighted_metrics[dsa]
+            dates = [dataset.parse_parcel_id(m['parcel_id']) for m in metrics]
+            now = datetime.now(timezone.utc)
+            reldates = [f'{(now - d).days} days ago' for d in dates]
+            headings = ['name'] + reldates
+            keys = [k for k in metrics[0].keys()
+                    if k not in ['parcel_id', 'success']]
+            rows = [[k] + [m[k] for m in metrics] for k in keys]
+            result += f'\nMetrics for {dsa.path.name}:\n\n'
+            result += text_table(headings, rows, indent='  ')
 
         return result

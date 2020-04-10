@@ -165,6 +165,7 @@ ds3  2001-02-01T000000Z (GONE)
         assert table in r.plaintext()
 
 
+@freeze_time('2001-10-10T12:00:00Z')
 def test_highlighted_metrics():
     with tempdatasets(3) as dsas:
         touch_metrics(dsas[0], '2001-01-01T000000Z',
@@ -192,3 +193,15 @@ def test_highlighted_metrics():
             dsas[2]: [{'parcel_id': '2001-01-02T000000Z',
                        'success': 'Y', 'bytes': '2'}],
         }
+        expected = """Metrics for ds1:
+
+  name   2 days ago  9 days ago  281 days ago
+  --------------------------------------------
+  bytes  4           3           2           
+
+Metrics for ds2:
+
+  name   281 days ago
+  --------------------
+  bytes  2"""
+        assert expected in r.plaintext()
