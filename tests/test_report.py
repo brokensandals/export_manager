@@ -163,3 +163,32 @@ ds2  NONE
 ds3  2001-02-01T000000Z (GONE)
 """
         assert table in r.plaintext()
+
+
+def test_highlighted_metrics():
+    with tempdatasets(3) as dsas:
+        touch_metrics(dsas[0], '2001-01-01T000000Z',
+                      {'success': 'N', 'bytes': '1'})
+        touch_metrics(dsas[1], '2001-01-01T000000Z',
+                      {'success': 'Y', 'bytes': '1'})
+        touch_metrics(dsas[1], '2001-01-02T000000Z',
+                      {'success': 'Y', 'bytes': '2'})
+        touch_metrics(dsas[1], '2001-10-01T000000Z',
+                      {'success': 'Y', 'bytes': '3'})
+        touch_metrics(dsas[1], '2001-10-08T100000Z',
+                      {'success': 'Y', 'bytes': '4'})
+        touch_metrics(dsas[2], '2001-01-01T000000Z',
+                      {'success': 'N', 'bytes': '1'})
+        touch_metrics(dsas[2], '2001-01-02T000000Z',
+                      {'success': 'Y', 'bytes': '2'})
+        r = Report(dsas)
+        assert r.highlighted_metrics == {
+            dsas[1]: [{'parcel_id': '2001-10-08T100000Z',
+                       'success': 'Y', 'bytes': '4'},
+                      {'parcel_id': '2001-10-01T000000Z',
+                       'success': 'Y', 'bytes': '3'},
+                      {'parcel_id': '2001-01-02T000000Z',
+                       'success': 'Y', 'bytes': '2'}],
+            dsas[2]: [{'parcel_id': '2001-01-02T000000Z',
+                       'success': 'Y', 'bytes': '2'}],
+        }

@@ -1,4 +1,11 @@
+from export_manager import dataset
 from datetime import timedelta
+
+
+HIGHLIGHT_DELTAS = [
+    timedelta(days=7),
+    timedelta(days=180),
+]
 
 
 class Report:
@@ -10,6 +17,7 @@ class Report:
         self.last_success_gone = []
         self.last_success_id = {}
         self.missing_metrics = []
+        self.highlighted_metrics = {}
 
         for dsa in dataset_accessors:
             pas = dsa.parcel_accessors()
@@ -41,6 +49,19 @@ class Report:
                 if gone:
                     self.last_success_gone.append(dsa)
                 self.last_success_id[dsa] = pid
+
+                deltas = list(HIGHLIGHT_DELTAS)
+                candidates = list(reversed(successes))[1:]
+                highlights = [successes[-1]]
+                prev = dataset.parse_parcel_id(pid)
+                while deltas and candidates:
+                    row = candidates.pop(0)
+                    cur = dataset.parse_parcel_id(row['parcel_id'])
+                    if prev - deltas[0] > cur:
+                        highlights.append(row)
+                        prev = cur
+                        deltas.pop(0)
+                self.highlighted_metrics[dsa] = highlights
             else:
                 self.last_success_id[dsa] = None
 

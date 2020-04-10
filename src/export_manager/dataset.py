@@ -43,13 +43,17 @@ def find_parcel_data_path(parent, parcel_id):
     return matches[0]
 
 
+def parse_parcel_id(parcel_id):
+    if not PARCEL_ID_FORMAT.match(parcel_id):
+        raise ValueError(f'invalid parcel_id: {parcel_id}')
+    return datetime.strptime(parcel_id, '%Y-%m-%dT%H%M%S%z')
+
+
 class ParcelAccessor:
     def __init__(self, dataset_accessor, parcel_id):
-        if not PARCEL_ID_FORMAT.match(parcel_id):
-            raise ValueError(f'invalid parcel_id: {parcel_id}')
         self.dataset_accessor = dataset_accessor
         self.parcel_id = parcel_id
-        self.datetime = datetime.strptime(self.parcel_id, '%Y-%m-%dT%H%M%S%z')
+        self.datetime = parse_parcel_id(parcel_id)
 
     def find_data(self):
         return find_parcel_data_path(
@@ -251,7 +255,7 @@ class DatasetAccessor:
         ids = self.find_parcel_ids()
         if not ids:
             return True
-        last = datetime.strptime(ids[-1], '%Y-%m-%dT%H%M%S%z')
+        last = parse_parcel_id(ids[-1])
         now = datetime.now(last.tzinfo)
         return (now - last) >= delta
 
