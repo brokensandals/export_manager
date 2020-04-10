@@ -26,9 +26,9 @@ def test_initialize():
         assert path.is_dir()
         assert path.joinpath('data').is_dir()
         assert (path.joinpath('metrics.csv').read_text()
-                == dataset.INITIAL_METRICS_CSV)
+                == dataset._INITIAL_METRICS_CSV)
         assert (path.joinpath('config.toml').read_text()
-                == dataset.DEFAULT_CONFIG_TOML)
+                == dataset._DEFAULT_CONFIG_TOML)
         assert not path.joinpath('.git').exists()
         assert not path.joinpath('.gitignore').exists()
 
@@ -41,12 +41,12 @@ def test_initialize_git():
         repo = Repo(str(path))
         assert not repo.is_dirty()
         assert (path.joinpath('.gitignore').read_text()
-                == dataset.DEFAULT_GITIGNORE)
+                == dataset._DEFAULT_GITIGNORE)
         assert repo.head.commit.message == '[export_manager] initialize'
         assert (sorted([b.name for b in repo.head.commit.tree.blobs])
                 == ['.gitignore', 'config.toml', 'metrics.csv'])
         assert (path.joinpath('config.toml').read_text()
-                == dataset.DEFAULT_CONFIG_TOML + 'git = true\n')
+                == dataset._DEFAULT_CONFIG_TOML + 'git = true\n')
 
 
 def test_read_config():
