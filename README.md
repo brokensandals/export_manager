@@ -42,7 +42,7 @@ Terminology:
            log/
    ```
 4. Edit the `config.toml` file in each subdirectory to specify the schedule and the command to run.
-   For example, if you install [exporteer\_todoist][exporteer\_todoist] you could use the following config to export data from Todoist:
+   For example, if you install [exporteer\_todoist][exporteer_todoist] you could use the following config to export data from Todoist:
     ```toml
     # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
     # $DATASET_PATH is also available and will be set to ~/exports/todoist
