@@ -46,7 +46,7 @@ Terminology:
     ```toml
     # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
     # $DATASET_PATH is also available and will be set to ~/exports/todoist
-    exportcmd = "TODOIST_API_TOKEN=your_token middling_export_todoist full_sync > $PARCEL_PATH.json"
+    exportcmd = "TODOIST_API_TOKEN=your_token exporteer_todoist full_sync > $PARCEL_PATH.json"
     # Only get a new export if the last one is at least 1 day old.
     interval = "1 day"
     # Only keep the most recent 5 exports.
@@ -126,4 +126,4 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/broken
 
 This is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
-[exporteer_todoist]: https://github.com/brokensandals/middling_export_todoist
+[exporteer_todoist]: https://github.com/brokensandals/exporteer_todoist
