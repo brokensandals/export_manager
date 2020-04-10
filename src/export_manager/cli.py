@@ -1,3 +1,6 @@
+"""Command-line interface for export_manager tool."""
+
+
 import argparse
 import sys
 from export_manager import dataset
@@ -5,13 +8,13 @@ from export_manager.dataset import DatasetAccessor
 from export_manager.report import Report
 
 
-def clean(args):
+def _clean(args):
     for path in args.path:
         DatasetAccessor(path).clean()
     return 0
 
 
-def export(args):
+def _export(args):
     for path in args.path:
         parcel_id = args.parcel_id or dataset.new_parcel_id()
         ds = DatasetAccessor(path)
@@ -19,13 +22,13 @@ def export(args):
     return 0
 
 
-def init(args):
+def _init(args):
     for path in args.path:
         DatasetAccessor(path).initialize(git=args.git)
     return 0
 
 
-def process(args):
+def _process(args):
     status = 0
     for path in args.path:
         ds = DatasetAccessor(path)
@@ -56,14 +59,14 @@ def process(args):
     return status
 
 
-def report(args):
+def _report(args):
     dsas = [DatasetAccessor(path) for path in args.path]
     r = Report(dsas)
     print(r.plaintext())
     return 0
 
 
-def reprocess_metrics(args):
+def _reprocess_metrics(args):
     for path in args.path:
         ds = DatasetAccessor(path)
         updates = {}
@@ -78,6 +81,11 @@ def reprocess_metrics(args):
 
 
 def main(args=None):
+    """Runs the tool and returns its exit code.
+
+    args may be an array of string command-line arguments; if absent,
+    the process's arguments are used.
+    """
     parser = argparse.ArgumentParser()
     parser.set_defaults(func=None)
 
@@ -85,7 +93,7 @@ def main(args=None):
 
     p_clean = subs.add_parser('clean', help='perform cleaning where needed')
     p_clean.add_argument('path', nargs='+', help='dataset dir path')
-    p_clean.set_defaults(func=clean)
+    p_clean.set_defaults(func=_clean)
 
     p_export = subs.add_parser('export', help='run export')
     p_export.add_argument('path', nargs='+', help='dataset dir path')
@@ -93,23 +101,23 @@ def main(args=None):
                           help='parcel_id for new export '
                                '(format: yyyy-mm-ddThhmmssZ) '
                                '(defaults to current timestamp)')
-    p_export.set_defaults(func=export)
+    p_export.set_defaults(func=_export)
 
     p_init = subs.add_parser('init', help='initialize new dataset dirs')
     p_init.add_argument('path', nargs='+', help='dataset dir path')
     p_init.add_argument('-g', '--git', action='store_true',
                         help='initialize a git repo')
-    p_init.set_defaults(func=init)
+    p_init.set_defaults(func=_init)
 
     p_process = subs.add_parser('process',
                                 help='run exports, update metrics, '
                                      'and perform cleaning, where needed')
     p_process.add_argument('path', nargs='+', help='dataset dir path')
-    p_process.set_defaults(func=process)
+    p_process.set_defaults(func=_process)
 
     p_report = subs.add_parser('report', help='summarize export activity')
     p_report.add_argument('path', nargs='+', help='dataset dir path')
-    p_report.set_defaults(func=report)
+    p_report.set_defaults(func=_report)
 
     p_reprocess_metrics = subs.add_parser('reprocess_metrics',
                                           help='update metrics for parcels')
@@ -118,7 +126,7 @@ def main(args=None):
     p_reprocess_metrics.add_argument(
         '-p', '--parcel_id', nargs='?',
         help='only reprocess specific parcel (format: yyyy-mm-ddThhmmssZ)')
-    p_reprocess_metrics.set_defaults(func=reprocess_metrics)
+    p_reprocess_metrics.set_defaults(func=_reprocess_metrics)
 
     args = parser.parse_args(args)
     if not args.func:
