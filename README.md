@@ -126,4 +126,4 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/broken
 
 This is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
-[middling_export_todoist]: https://github.com/brokensandals/middling_export_todoist
+[exporteer_todoist]: https://github.com/brokensandals/middling_export_todoist
