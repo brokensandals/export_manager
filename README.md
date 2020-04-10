@@ -46,7 +46,7 @@ Terminology:
     ```toml
     # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
     # $DATASET_PATH is also available and will be set to ~/exports/todoist
-    exportcmd = "TODOIST_API_TOKEN=your_token exporteer_todoist full_sync > $PARCEL_PATH.json"
+    cmd = "TODOIST_API_TOKEN=your_token exporteer_todoist full_sync > $PARCEL_PATH.json"
     # Only get a new export if the last one is at least 1 day old.
     interval = "1 day"
     # Only keep the most recent 5 exports.
@@ -85,6 +85,10 @@ metrics.tasks.cmd = "jq '.items | length' $PARCEL_PATH"
 ```
 
 The `process` command gathers all the configured metrics every time a new parcel is produced and stores them in `metrics.csv`.
+
+## Tracking Parcels in Git
+
+If you make your dataset directory a git repo, and set `git = true` in `config.toml`, then the data files of successful exports, as well as the metrics.csv file, will be committed after each change.
 
 ## Development
 
