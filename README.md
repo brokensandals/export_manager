@@ -124,7 +124,7 @@ PYTHONPATH=src python -m export_manager ...
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/brokensandals/blunt-instrument.
+Bug reports and pull requests are welcome on GitHub at https://github.com/brokensandals/export_manager.
 
 ## License
 
