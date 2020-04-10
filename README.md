@@ -64,8 +64,10 @@ Setup:
 To run unit tests:
 
 ```bash
-pytest
+PYTHONPATH=src pytest
 ```
+
+(Overriding PYTHONPATH as shown ensures the tests run against the code in the src/ directory rather than the installed copy of the package.)
 
 To run the CLI:
 
