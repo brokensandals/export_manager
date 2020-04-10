@@ -45,6 +45,7 @@ Terminology:
    For example, if you install [exporteer\_todoist][exporteer\_todoist] you could use the following config to export data from Todoist:
     ```toml
     # Command to invoke. $PARCEL_PATH will be set to ~/exports/todoist/data/DATETIME
+    # $DATASET_PATH is also available and will be set to ~/exports/todoist
     exportcmd = "TODOIST_API_TOKEN=your_token middling_export_todoist full_sync > $PARCEL_PATH.json"
     # Only get a new export if the last one is at least 1 day old.
     interval = "1 day"
@@ -77,7 +78,7 @@ By default, the metrics include the number of bytes and number of files in the p
 
 You can also define custom metrics for each dataset in the `config.toml` file.
 For example, for json data, you might use [jq](https://stedolan.github.io/jq/) to count some elements of the json.
-The following config counts the number of tasks in a todoist sync parcels configured above:
+The following config creates a metric named "tasks" to track the number of tasks in the todoist exports configured above:
 
 ```toml
 metrics.tasks.cmd = "jq '.items | length' $PARCEL_PATH"
@@ -116,5 +117,13 @@ To run the CLI:
 ```bash
 PYTHONPATH=src python -m export_manager ...
 ```
+
+## Contributing
+
+Bug reports and pull requests are welcome on GitHub at https://github.com/brokensandals/blunt-instrument.
+
+## License
+
+This is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
 [middling_export_todoist]: https://github.com/brokensandals/middling_export_todoist
