@@ -45,8 +45,11 @@ def find_parcel_data_path(parent, parcel_id):
 
 class ParcelAccessor:
     def __init__(self, dataset_accessor, parcel_id):
+        if not PARCEL_ID_FORMAT.match(parcel_id):
+            raise ValueError(f'invalid parcel_id: {parcel_id}')
         self.dataset_accessor = dataset_accessor
         self.parcel_id = parcel_id
+        self.datetime = datetime.strptime(self.parcel_id, '%Y-%m-%dT%H%M%S%z')
 
     def find_data(self):
         return find_parcel_data_path(

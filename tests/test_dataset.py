@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from git import Repo
 from pathlib import Path
 import pytest
@@ -311,24 +312,32 @@ def test_parsel_accessors():
         parcels = dsa.parcel_accessors()
         assert len(parcels) == 4
         assert parcels[0].parcel_id == id1
+        assert parcels[0].datetime == datetime(
+            2001, 1, 1, 1, 1, 1, tzinfo=timezone.utc)
         assert parcels[0].is_complete()
         assert parcels[0].find_data() == data1
         assert parcels[0].find_incomplete() is None
         assert parcels[0].find_stdout() == out1
         assert parcels[0].find_stderr() == err1
         assert parcels[1].parcel_id == id2
+        assert parcels[1].datetime == datetime(
+            2002, 2, 2, 2, 2, 2, tzinfo=timezone.utc)
         assert not parcels[1].is_complete()
         assert parcels[1].find_data() is None
         assert parcels[1].find_incomplete() == incomplete2
         assert parcels[1].find_stdout() is None
         assert parcels[1].find_stderr() is None
         assert parcels[2].parcel_id == id3
+        assert parcels[2].datetime == datetime(
+            2003, 3, 3, 3, 3, 3, tzinfo=timezone.utc)
         assert parcels[2].is_complete()
         assert parcels[2].find_data() == data3
         assert parcels[2].find_incomplete() is None
         assert parcels[2].find_stdout() is None
         assert parcels[2].find_stderr() is None
         assert parcels[3].parcel_id == id4
+        assert parcels[3].datetime == datetime(
+            2004, 4, 4, 4, 4, 4, tzinfo=timezone.utc)
         assert not parcels[3].is_complete()
         assert parcels[3].find_data() is None
         assert parcels[3].find_incomplete() is None

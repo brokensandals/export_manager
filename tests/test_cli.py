@@ -10,7 +10,7 @@ def test_clean():
         assert cli.main(['init', rawpath]) == 0
         path = Path(rawpath)
         path.joinpath('config.toml').write_text('keep = 5')
-        ids = [f'2001-01-0{i}T000000Z' for i in range(10)]
+        ids = [f'2001-01-01T00000{i}Z' for i in range(10)]
         for pid in ids:
             path.joinpath('data', f'{pid}.txt').touch()
         assert cli.main(['clean', rawpath]) == 0
@@ -103,7 +103,7 @@ def test_report(capsys):
         path1.joinpath('data', '2000-01-01T000000Z.txt').touch()
         assert cli.main(['report', str(path1), str(path2)]) == 0
         cap = capsys.readouterr()
-        assert 'WARNING: no complete parcels for: beta\n' in cap.out
+        assert 'WARNING: no complete parcel for: beta\n' in cap.out
 
 
 def test_reprocess_metrics():
