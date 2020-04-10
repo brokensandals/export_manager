@@ -26,6 +26,13 @@ def touch_incomplete(dsa, parcel_id='2000-01-01T010101Z'):
     dsa.incomplete_path.joinpath(f'{parcel_id}.txt').touch()
 
 
+def touch_metrics(dsa, parcel_id='2000-01-01T010101Z', row=None):
+    if not row:
+        row = {'files': '1', 'bytes': '10'}
+    row = {'parcel_id': parcel_id, **row}
+    dsa.update_metrics({parcel_id: row})
+
+
 def warnlines(s):
     return [l for l in s.splitlines() if 'WARNING' in l]
 
@@ -42,7 +49,9 @@ def test_empty():
 def test_all_good():
     with tempdatasets(2) as dsas:
         touch_data(dsas[0])
+        touch_metrics(dsas[0])
         touch_data(dsas[1])
+        touch_metrics(dsas[1])
         r = Report(dsas)
         assert r.has_no_complete == []
         assert r.is_overdue == []
@@ -54,6 +63,7 @@ def test_has_no_complete():
     with tempdatasets(3) as dsas:
         touch_incomplete(dsas[0])
         touch_data(dsas[1])
+        touch_metrics(dsas[1])
         r = Report(dsas)
         assert r.has_no_complete == [dsas[0], dsas[2]]
         assert (warnlines(r.plaintext()) ==
@@ -67,26 +77,51 @@ def test_is_overdue():
         dsas[0].write_config({'interval': '1 hour'})
         dsas[1].write_config({'interval': '1 hour'})
         touch_data(dsas[1], '2010-01-05T033000Z')
+        touch_metrics(dsas[1], '2010-01-05T033000Z')
         dsas[2].write_config({'interval': '1 hour'})
         touch_data(dsas[2], '2010-01-05T033000Z')
         touch_data(dsas[2], '2010-01-05T040500Z')
+        touch_metrics(dsas[2], '2010-01-05T040500Z')
         dsas[3].write_config({'interval': '1 hour'})
         touch_data(dsas[3], '2010-01-05T033000Z')
+        touch_metrics(dsas[3], '2010-01-05T033000Z')
         touch_incomplete(dsas[3], '2010-01-05T040500Z')
         r = Report(dsas)
         assert r.is_overdue == [dsas[0], dsas[1]]
         assert (warnlines(r.plaintext()) ==
-                ['WARNING: no complete parcels for: ds0, ds4'],
-                ['WARNING: overdue: ds0, ds1'],
-                ['WARNING: most recent parcels are incomplete for: ds3'])
+                ['WARNING: no complete parcels for: ds0, ds4',
+                 'WARNING: overdue: ds0, ds1',
+                 'WARNING: most recent parcels are incomplete for: ds3'])
+
+
+def test_last_complete_missing_metrics():
+    with tempdatasets(5) as dsas:
+        touch_data(dsas[1])
+        touch_data(dsas[2])
+        touch_metrics(dsas[2])
+        touch_data(dsas[3], '2000-01-01T010101Z')
+        touch_metrics(dsas[3], '2000-01-01T010101Z')
+        touch_data(dsas[3], '2000-02-01T010101Z')
+        touch_data(dsas[4], '2000-01-01T010101Z')
+        touch_metrics(dsas[4], '2000-01-01T010101Z',
+                      {'foo': '1', 'bar': 'ERROR', 'baz': '3'})
+        r = Report(dsas)
+        assert r.missing_metrics == [dsas[1], dsas[3], dsas[4]]
+        assert (warnlines(r.plaintext()) ==
+                ['WARNING: no complete parcels for: ds0',
+                 'WARNING: missing metrics in last complete parcel for:'
+                 ' ds1, ds3, ds4'])
 
 
 def test_last_is_incomplete():
     with tempdatasets(3) as dsas:
         touch_data(dsas[0], '2001-01-01T000000Z')
+        touch_metrics(dsas[0], '2001-01-01T000000Z')
         touch_incomplete(dsas[0], '2005-01-01T000000Z')
         touch_data(dsas[1])
+        touch_metrics(dsas[1])
         touch_data(dsas[2], '2003-04-05T000000Z')
+        touch_metrics(dsas[2], '2003-04-05T000000Z')
         touch_incomplete(dsas[2], '2004-01-01T000000Z')
         r = Report(dsas)
         assert r.last_is_incomplete == [dsas[0], dsas[2]]
