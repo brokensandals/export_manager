@@ -1,7 +1,7 @@
 from datetime import timedelta
 import re
 
-UNITS = {
+_UNITS = {
     'w': 'weeks',
     'wk': 'weeks',
     'week': 'weeks',
@@ -24,17 +24,23 @@ UNITS = {
     'second': 'seconds',
     'seconds': 'seconds'
 }
-UNIT_PATTERN = '|'.join(UNITS.keys())
-PART_RE = re.compile(f'(\\d+)\\s*({UNIT_PATTERN})')
-DELTA_RE = re.compile(f'\\A(\\s*{PART_RE.pattern}\\s*,?\\s*)+\\Z')
+_UNIT_PATTERN = '|'.join(_UNITS.keys())
+_PART_RE = re.compile(f'(\\d+)\\s*({_UNIT_PATTERN})')
+_DELTA_RE = re.compile(f'\\A(\\s*{_PART_RE.pattern}\\s*,?\\s*)+\\Z')
 
 
 def parse_delta(s):
-    """A simple time interval parser. Given a string such as
-    "1 week" or "5 minutes 3 seconds" or "1 day, 2 hours" or "1w2d3h5m4s",
-    returns the corresponding timedelta.
+    """Returns a timedelta parsed from a human-friendly string.
+
+    Example inputs:
+    "1 week"
+    "5 minutes 3 seconds"
+    "1 day, 2 hours"
+    "1w2d3h5m4s"
+
+    Raises ValueError if it can't parse the string.
     """
-    if not DELTA_RE.match(s):
+    if not _DELTA_RE.match(s):
         raise ValueError(f'Unrecognized duration: {s}')
     units = {
         'weeks': 0,
@@ -44,9 +50,9 @@ def parse_delta(s):
         'seconds': 0
     }
 
-    for match in PART_RE.findall(s):
+    for match in _PART_RE.findall(s):
         qty, unit = match
-        units[UNITS[unit]] = float(qty)
+        units[_UNITS[unit]] = float(qty)
     return timedelta(weeks=units['weeks'],
                      days=units['days'],
                      hours=units['hours'],

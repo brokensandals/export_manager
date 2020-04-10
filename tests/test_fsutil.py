@@ -1,5 +1,5 @@
-from export_manager.fsutil import total_size_bytes
-from export_manager.fsutil import total_file_count
+from export_manager._fsutil import total_size_bytes
+from export_manager._fsutil import total_file_count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 

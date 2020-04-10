@@ -1,6 +1,6 @@
 from datetime import timedelta
 import pytest
-from export_manager.interval import parse_delta
+from export_manager._interval import parse_delta
 
 
 def test_empty():

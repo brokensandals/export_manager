@@ -9,8 +9,8 @@ import shutil
 import subprocess
 import sys
 import toml
-from export_manager import fsutil
-from export_manager import interval
+from export_manager import _fsutil
+from export_manager import _interval
 
 
 DEFAULT_GITIGNORE = """.DS_Store
@@ -180,8 +180,8 @@ class DatasetAccessor:
             path = find_parcel_data_path(self.incomplete_path, parcel_id)
 
         if path:
-            results['files'] = str(fsutil.total_file_count(path))
-            results['bytes'] = str(fsutil.total_size_bytes(path))
+            results['files'] = str(_fsutil.total_file_count(path))
+            results['bytes'] = str(_fsutil.total_size_bytes(path))
 
             cfg = self.read_config()
             for name in cfg.get('metrics', {}):
@@ -250,7 +250,7 @@ class DatasetAccessor:
         delta_str = cfg.get('interval', None)
         if not delta_str:
             return False
-        delta = interval.parse_delta(delta_str) - margin
+        delta = _interval.parse_delta(delta_str) - margin
 
         ids = self.find_parcel_ids()
         if not ids:
