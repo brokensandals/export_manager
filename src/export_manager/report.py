@@ -1,16 +1,19 @@
+"""Generates reports summarizing export dataset status."""
+
+
 from export_manager import dataset
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
 
-HIGHLIGHT_DELTAS = [
+_HIGHLIGHT_DELTAS = [
     timedelta(days=7),
     timedelta(days=180),
 ]
 
 
-def text_table(header, rows, indent=''):
+def _text_table(header, rows, indent=''):
     widths = [max([len(r[i]) for r in [header] + rows])
               for i in range(len(header))]
     fmt = '  '.join('{:<' + str(w) + '}' for w in widths) + '\n'
@@ -23,7 +26,27 @@ def text_table(header, rows, indent=''):
 
 
 class Report:
+    """A report summarizing a list of datasets.
+
+    The report's data is initialized in attributes by the constructor:
+    - has_no_complete: list of datasets which have no extant complete parcels
+    - is_overdue: list of datasets that are due for another parcel
+    - last_is_incomplete: list of datasets whose most recent parcel
+                          is incomplete
+    - last_success_gone: list of datasets where the most recent successful
+                         parcel (as recorded in metrics.csv) is incomplete
+    - last_success_id: dict of datasets to the parcel_id of their most recent
+                       parcel
+    - missing_metrics: list of datasets for which the most recent complete
+                       parcel has no metrics, or at least one of its metrics
+                       is ERROR
+    - highlighted_metrics: dict of datasets to a list of metric rows which
+                           should be presented to the user; these will be
+                           the most recent success and possibly 1-2 historical
+                           successes
+    """
     def __init__(self, dataset_accessors):
+        """Creates a report covering the given datasets."""
         self.dataset_accessors = dataset_accessors
         self.has_no_complete = []
         self.is_overdue = []
@@ -64,7 +87,7 @@ class Report:
                     self.last_success_gone.append(dsa)
                 self.last_success_id[dsa] = pid
 
-                deltas = list(HIGHLIGHT_DELTAS)
+                deltas = list(_HIGHLIGHT_DELTAS)
                 candidates = list(reversed(successes))[1:]
                 highlights = [successes[-1]]
                 prev = dataset.parse_parcel_id(pid)
@@ -86,6 +109,7 @@ class Report:
                              or self.missing_metrics)
 
     def plaintext(self):
+        """Returns a plaintext string with the report results."""
         if not self.dataset_accessors:
             return 'No datasets were specified :/'
 
@@ -142,6 +166,6 @@ class Report:
                     if k not in ['parcel_id', 'success']]
             rows = [[k] + [m[k] for m in metrics] for k in keys]
             result += f'\nMetrics for {dsa.path.name}:\n\n'
-            result += text_table(headings, rows, indent='  ')
+            result += _text_table(headings, rows, indent='  ')
 
         return result
