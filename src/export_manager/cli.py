@@ -8,6 +8,12 @@ from export_manager.dataset import DatasetAccessor
 from export_manager.report import Report
 
 
+def _auto_ingest(args):
+    for path in args.path:
+        DatasetAccessor(path).auto_ingest()
+    return 0
+
+
 def _clean(args):
     for path in args.path:
         DatasetAccessor(path).clean()
@@ -97,6 +103,12 @@ def main(args=None):
     parser.set_defaults(func=None)
 
     subs = parser.add_subparsers(title='Commands')
+
+    p_auto_ingest = subs.add_parser(
+        'auto_ingest',
+        help='ingest from paths configured in config.toml')
+    p_auto_ingest.add_argument('path', nargs='+', help='dataset dir path')
+    p_auto_ingest.set_defaults(func=_auto_ingest)
 
     p_clean = subs.add_parser('clean', help='perform cleaning where needed')
     p_clean.add_argument('path', nargs='+', help='dataset dir path')

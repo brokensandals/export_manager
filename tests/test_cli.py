@@ -5,6 +5,21 @@ from tempfile import TemporaryDirectory
 from export_manager import cli
 
 
+def test_auto_ingest():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text(
+            'ingest.paths = "ingest-me.txt"')
+        ingestpath = path.joinpath('ingest-me.txt')
+        ingestpath.write_text('hello')
+        with freeze_time('2020-04-01T010203Z'):
+            assert cli.main(['auto_ingest', rawpath]) == 0
+        assert not ingestpath.exists()
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello')
+
+
 def test_clean():
     with TemporaryDirectory() as rawpath:
         assert cli.main(['init', rawpath]) == 0
