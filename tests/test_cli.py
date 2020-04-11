@@ -5,56 +5,6 @@ from tempfile import TemporaryDirectory
 from export_manager import cli
 
 
-def test_auto_ingest():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        path.joinpath('config.toml').write_text(
-            'ingest.paths = "ingest-me.txt"')
-        ingestpath = path.joinpath('ingest-me.txt')
-        ingestpath.write_text('hello')
-        with freeze_time('2020-04-01T010203Z'):
-            assert cli.main(['auto_ingest', rawpath]) == 0
-        assert not ingestpath.exists()
-        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
-                == 'hello')
-
-
-def test_clean():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        path.joinpath('config.toml').write_text('keep = 5')
-        ids = [f'2001-01-01T00000{i}Z' for i in range(10)]
-        for pid in ids:
-            path.joinpath('data', f'{pid}.txt').touch()
-        assert cli.main(['clean', rawpath]) == 0
-        assert sum(1 for p in path.glob('data/*.txt')) == 5
-
-
-def test_export():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        path.joinpath('config.toml').write_text(
-            'cmd = "echo hello > $PARCEL_PATH.txt"')
-        with freeze_time('2020-04-01T010203Z'):
-            assert cli.main(['export', rawpath]) == 0
-        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
-                == 'hello\n')
-
-
-def test_export_given_id():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        path.joinpath('config.toml').write_text(
-            'cmd = "echo hello > $PARCEL_PATH.txt"')
-        assert cli.main(['export', '-p', '2015-01-02T030405Z', rawpath]) == 0
-        assert (path.joinpath('data', '2015-01-02T030405Z.txt').read_text()
-                == 'hello\n')
-
-
 def test_ingest():
     with TemporaryDirectory() as rawpath:
         assert cli.main(['init', rawpath]) == 0
