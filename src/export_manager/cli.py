@@ -22,6 +22,13 @@ def _export(args):
     return 0
 
 
+def _ingest(args):
+    parcel_id = args.parcel_id or dataset.new_parcel_id()
+    ds = DatasetAccessor(args.dataset_path[0])
+    ds.ingest(parcel_id, args.ingest_path[0])
+    return 0
+
+
 def _init(args):
     for path in args.path:
         DatasetAccessor(path).initialize(git=args.git)
@@ -102,6 +109,17 @@ def main(args=None):
                                '(format: yyyy-mm-ddThhmmssZ) '
                                '(defaults to current timestamp)')
     p_export.set_defaults(func=_export)
+
+    p_ingest = subs.add_parser(
+        'ingest',
+        help='move a file/dir into a dataset')
+    p_ingest.add_argument('dataset_path', nargs=1, help='dataset dir path')
+    p_ingest.add_argument('ingest_path', nargs=1, help='file/dir to ingest')
+    p_ingest.add_argument('-p', '--parcel_id', nargs='?',
+                          help='parcel_id for ingested data '
+                               '(format: yyyy-mm-ddThhmmssZ) '
+                               '(defaults to current timestamp)')
+    p_ingest.set_defaults(func=_ingest)
 
     p_init = subs.add_parser('init', help='initialize new dataset dirs')
     p_init.add_argument('path', nargs='+', help='dataset dir path')

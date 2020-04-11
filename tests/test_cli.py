@@ -40,6 +40,30 @@ def test_export_given_id():
                 == 'hello\n')
 
 
+def test_ingest():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        ingest = path.joinpath('foo.txt')
+        ingest.write_text('hello')
+        with freeze_time('2020-04-01T010203Z'):
+            assert cli.main(['ingest', rawpath, str(ingest)]) == 0
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello')
+
+
+def test_ingest_given_id():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        ingest = path.joinpath('foo.txt')
+        ingest.write_text('hello')
+        assert cli.main(['ingest', '-p', '2020-04-01T010203Z',
+                         rawpath, str(ingest)]) == 0
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello')
+
+
 def test_init():
     with TemporaryDirectory() as rawpath:
         path1 = Path(rawpath).joinpath('alpha')
