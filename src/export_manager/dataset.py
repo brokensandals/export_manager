@@ -15,6 +15,7 @@ The DatasetAccessor class is the main entry point for working with datasets.
 import csv
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from git import Repo
 import glob
 from operator import itemgetter
@@ -42,6 +43,8 @@ _DEFAULT_CONFIG_TOML = """# cmd = "echo example > $PARCEL_PATH.txt"
 _INITIAL_METRICS_CSV = "parcel_id,success,files,bytes"
 
 _PARCEL_ID_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
+
+_VALID_INGEST_TIME_SOURCES = ['mtime', 'now']
 
 
 class ParcelIDFormatException(Exception):
@@ -420,11 +423,11 @@ class DatasetAccessor:
         All files/dirs matching the globs will be ingested - see
         the ingest method.
 
-        FIXME: Right now this won't generally work if multiple paths
-               match, since the same parcel ID will be generated for
-               each. Producing multiple parcels within one second is
-               really outside the intended usage of this project,
-               but the fact that it doesn't work is pretty ugly.
+        The parcel_ids will be chosen based on the property
+        "ingest.time_source" in config.toml, which may have the following
+        values:
+        - "mtime" - modification time of the file
+        - "now" (default) - create a new parcel_id based on current time
         """
         cfg = self.read_config()
         pathglobs = cfg.get('ingest', {}).get('paths', [])
@@ -441,9 +444,21 @@ class DatasetAccessor:
             else:
                 found += list(self.path.glob(pathglob))
 
+        time_source = cfg.get('ingest').get('time_source', 'now')
+        if time_source not in _VALID_INGEST_TIME_SOURCES:
+            raise Exception('invalid ingest.time_source '
+                            f'(expected one of {_VALID_INGEST_TIME_SOURCES}) '
+                            f': {time_source}')
+
         parcel_ids = []
         for path in found:
-            parcel_id = new_parcel_id()
+            parcel_id = None
+            if time_source == 'mtime':
+                dt = datetime.fromtimestamp(
+                    path.stat().st_mtime, timezone.utc)
+                parcel_id = dt.strftime('%Y-%m-%dT%H%M%SZ')
+            elif time_source == 'now':
+                parcel_id = new_parcel_id()
             self.ingest(parcel_id, path)
             parcel_ids.append(parcel_id)
         return parcel_ids

@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from git import Repo
+import os
 from pathlib import Path
 import pytest
 from tempfile import TemporaryDirectory
@@ -200,6 +201,21 @@ def test_auto_ingest_relative():
         oldpath.write_text('hello')
         parcel_ids = dsa.auto_ingest()
         assert len(parcel_ids) == 1
+        assert not oldpath.exists()
+        assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
+                == 'hello')
+
+
+def test_auto_ingest_mtime():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({'ingest': {'paths': 'foo/*.txt',
+                                     'time_source': 'mtime'}})
+        dsa.path.joinpath('foo').mkdir()
+        oldpath = dsa.path.joinpath('foo', 'blah.txt')
+        oldpath.write_text('hello')
+        os.utime(oldpath, (10, 1578189722))
+        parcel_ids = dsa.auto_ingest()
+        assert parcel_ids == ['2020-01-05T020202Z']
         assert not oldpath.exists()
         assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
                 == 'hello')
