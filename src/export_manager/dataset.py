@@ -486,7 +486,8 @@ class DatasetAccessor:
             # Checking specifically for '~' is super hacky, but I haven't
             # found a better way to do this.
             if Path(pathglob).is_absolute() or pathglob.startswith('~'):
-                found += glob.glob(pathglob, recursive=True)
+                found += [Path(p) for p
+                          in glob.glob(pathglob, recursive=True)]
             else:
                 found += list(self.path.glob(pathglob))
 

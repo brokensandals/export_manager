@@ -244,6 +244,22 @@ def test_auto_ingest_relative():
             f'{list(parcel_paths.keys())[0]}.txt').read_text() == 'hello')
 
 
+def test_auto_ingest_absolute_mtime():
+    with tempdatasetdir() as dsa:
+        oldpath = dsa.path.joinpath('foo', 'blah.txt')
+        pathglob = str(oldpath.resolve()).replace('blah.txt', '*.txt')
+        dsa.write_config({'ingest': {'paths': pathglob,
+                                     'time_source': 'mtime'}})
+        dsa.path.joinpath('foo').mkdir()
+        oldpath.write_text('hello')
+        os.utime(oldpath, (10, 1578189722))
+        parcel_paths = dsa._run_ingest()
+        assert list(parcel_paths.keys()) == ['2020-01-05T020202Z']
+        assert not oldpath.exists()
+        assert (dsa.data_path.joinpath(
+            f'{list(parcel_paths.keys())[0]}.txt').read_text() == 'hello')
+
+
 def test_auto_ingest_mtime():
     with tempdatasetdir() as dsa:
         dsa.write_config({'ingest': {'paths': 'foo/*.txt',
