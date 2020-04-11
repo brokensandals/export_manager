@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import toml
+import traceback
 from export_manager import _fsutil
 from export_manager import _interval
 
@@ -271,6 +272,9 @@ class DatasetAccessor:
 
         metrics.csv is created or updated by this method.
         """
+        if not updates:
+            return
+
         metrics = self.read_metrics()
         field_order = []
         fields = set()
@@ -364,8 +368,8 @@ class DatasetAccessor:
                    + ', '.join(parcel_ids))
         self._commit(message, ['metrics.csv'])
 
-    def run_export(self, parcel_id):
-        """Runs the dataset's export command to produce a parcel.
+    def _run_export(self, parcel_id):
+        """Runs the dataset's export command, without committing.
 
         The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format;
         using the new_parcel_id function is recommended.
@@ -388,9 +392,6 @@ class DatasetAccessor:
         If the command's exit code is nonzero, an error will be raised.
         Also, the parcel will be considered 'incomplete' - the data
         will reside in a different location than complete data.
-
-        If git=True in config.toml and the command is successful, the
-        data file(s) it produces will be committed to the repo.
         """
         pa = self.parcel_accessor(parcel_id)
         if pa.is_known():
@@ -422,13 +423,11 @@ class DatasetAccessor:
         self.data_path.mkdir(exist_ok=True)
         oldpath.rename(newpath)
 
-        self._commit(f'[export_manager] add parcel data for {parcel_id}',
-                     [str(newpath.relative_to(self.path))])
-
     def _run_ingest(self):
         """Moves any files matching the configured ingest.paths
 
-        A list of parcel_ids that were created is returned.
+        A dict of parcel_ids that were created, to their original path,
+        is returned.
 
         This looks at the array property "ingest.paths" in config.toml,
         which should be an array of path globs. If the property is not
@@ -448,7 +447,7 @@ class DatasetAccessor:
         cfg = self.read_config()
         pathglobs = cfg.get('ingest', {}).get('paths', [])
         if not pathglobs:
-            return
+            return {}
         if isinstance(pathglobs, str):
             pathglobs = [pathglobs]
         found = []
@@ -466,7 +465,7 @@ class DatasetAccessor:
                             f'(expected one of {_VALID_INGEST_TIME_SOURCES}) '
                             f': {time_source}')
 
-        parcel_ids = []
+        parcel_ids = {}
         for path in found:
             parcel_id = None
             if time_source == 'mtime':
@@ -476,7 +475,7 @@ class DatasetAccessor:
             elif time_source == 'now':
                 parcel_id = new_parcel_id()
             self._ingest_path(path, parcel_id)
-            parcel_ids.append(parcel_id)
+            parcel_ids[parcel_id] = path
         return parcel_ids
 
     def _ingest_path(self, path, parcel_id):
@@ -507,6 +506,56 @@ class DatasetAccessor:
         pa = self.parcel_accessor(parcel_id)
         self._commit(message, ['metrics.csv',
                                str(pa.find_data().relative_to(self.path))])
+
+    def process(self):
+        """Runs ingestion, export (if due), updates metrics, then commits.
+
+        Returns a tuple containing a list of new parcel IDs and a list of
+        exceptions that were caught. Exceptions running the export or
+        updating metrics are caught, other errors are propagated.
+
+        For details on how each step is handled see:
+        - _run_ingest
+        - _run_export
+        - _collect_metrics
+        """
+        parcel_ids = []
+        errors = []
+
+        # TODO: handle errors here
+        ingested_paths = self._run_ingest()
+        parcel_ids += ingested_paths.keys()
+
+        if self.is_due():
+            export_id = new_parcel_id()
+            parcel_ids.append(export_id)
+            try:
+                self._run_export(export_id)
+            except Exception as e:
+                print(f'export failed for {self.path}', file=sys.stderr)
+                traceback.print_exc()
+                errors.append(e)
+
+        try:
+            self._process_metrics(parcel_ids)
+        except Exception as e:
+            print(f'metrics update failed for {self.path}', file=sys.stderr)
+            traceback.print_exc()
+            errors.append(e)
+
+        message = '[export_manager] process new parcels: ' + ', '.join(parcel_ids)
+        for pid in ingested_paths:
+            message += f'\n{pid} was ingested from {ingested_paths[pid]}'
+        added = ['metrics.csv']
+        for pid in parcel_ids:
+            pa = self.parcel_accessor(pid)
+            dp = pa.find_data()
+            if dp:
+                added.append(str(dp.relative_to(self.path)))
+
+        self._commit(message, added)
+
+        return parcel_ids, errors
 
     def find_parcel_ids(self):
         """Returns the ids of extant parcels, as a list of strings.
@@ -567,8 +616,10 @@ class DatasetAccessor:
         now = datetime.now(last.tzinfo)
         return (now - last) >= delta
 
-    def clean(self):
-        """Removes old parcels.
+    def _clean(self):
+        """Removes old parcels without committing.
+
+        Returns paths of removed complete data files.
 
         The number of parcels to keep at once is determined by the "keep"
         property in config.toml. If that property is missing, this method
@@ -581,16 +632,13 @@ class DatasetAccessor:
         parcels remain after this method runs.
 
         Nothing is removed from metrics.csv.
-
-        If git=True in config.toml, a commit is made to remove complete
-        data files.
         """
         cfg = self.read_config()
         keep = cfg.get('keep', None)
         if not keep:
-            return
+            return []
 
-        git_rm = []
+        rm = []
 
         parcels = self.parcel_accessors()
         while len(parcels) > keep:
@@ -614,13 +662,26 @@ class DatasetAccessor:
 
             complete = parcels[0].find_data()
             if complete:
-                git_rm.append(str(complete.relative_to(self.path)))
+                rm.append(complete)
                 if complete.is_file():
                     complete.unlink()
                 if complete.is_dir():
                     shutil.rmtree(complete)
 
             parcels.pop(0)
+
+        return rm
+
+    def clean(self):
+        """Removes old parcels.
+
+        See _clean for details on how this is done.
+
+        If git=True in config.toml, a commit is made to remove complete
+        data files.
+        """
+        rm = self._clean()
+        git_rm = [str(p.relative_to(self.path)) for p in rm]
 
         if git_rm:
             self._commit('[export_manager] clean', rm=git_rm)

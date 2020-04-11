@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from freezegun import freeze_time
 from git import Repo
 import os
 from pathlib import Path
@@ -112,7 +113,7 @@ def test_update_metrics():
 
 def test_run_export_no_cmd():
     with tempdatasetdir() as dsa:
-        dsa.run_export(dataset.new_parcel_id())
+        dsa._run_export(dataset.new_parcel_id())
         assert sum(1 for x in dsa.data_path.glob('*')) == 0
         assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
 
@@ -121,7 +122,7 @@ def test_run_export_no_data():
     with tempdatasetdir() as dsa:
         dsa.write_config({'cmd': 'echo hi && (echo muahaha >&2)'})
         with pytest.raises(Exception):
-            dsa.run_export(dataset.new_parcel_id())
+            dsa._run_export(dataset.new_parcel_id())
         assert sum(1 for x in dsa.data_path.glob('*')) == 0
         assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
         assert next(dsa.log_path.glob('*.out')).read_text() == 'hi\n'
@@ -134,35 +135,19 @@ def test_run_export_existing_parcel():
         dsa.data_path.joinpath(f'{parcel_id}.txt').write_text('old')
         dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt'})
         with pytest.raises(ParcelExistsException):
-            dsa.run_export(parcel_id)
+            dsa._run_export(parcel_id)
 
 
 def test_run_export():
     with tempdatasetdir() as dsa:
         dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt'})
         parcel_id = dataset.new_parcel_id()
-        dsa.run_export(parcel_id)
+        dsa._run_export(parcel_id)
         assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
         assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
                 == 'hi\n')
         assert dsa.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
         assert dsa.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
-
-
-def test_run_export_git():
-    with tempdatasetdir(git=True) as dsa:
-        dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt',
-                          'git': True})
-        parcel_id = dataset.new_parcel_id()
-        dsa.run_export(parcel_id)
-        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
-        assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
-                == 'hi\n')
-        assert dsa.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
-        assert dsa.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
-        repo = Repo(dsa.path)
-        assert ([b.name for b in repo.head.commit.tree['data']]
-                == [f'{parcel_id}.txt'])
 
 
 def test_auto_ingest_no_paths():
@@ -186,11 +171,11 @@ def test_auto_ingest_absolute():
         dsa.write_config({'ingest': {'paths': pathglob}})
         dsa.path.joinpath('foo').mkdir()
         oldpath.write_text('hello')
-        parcel_ids = dsa._run_ingest()
-        assert len(parcel_ids) == 1
+        parcel_paths = dsa._run_ingest()
+        assert len(parcel_paths) == 1
         assert not oldpath.exists()
-        assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
-                == 'hello')
+        assert (dsa.data_path.joinpath(
+            f'{list(parcel_paths.keys())[0]}.txt').read_text() == 'hello')
 
 
 def test_auto_ingest_relative():
@@ -199,11 +184,11 @@ def test_auto_ingest_relative():
         dsa.path.joinpath('foo').mkdir()
         oldpath = dsa.path.joinpath('foo', 'blah.txt')
         oldpath.write_text('hello')
-        parcel_ids = dsa._run_ingest()
-        assert len(parcel_ids) == 1
+        parcel_paths = dsa._run_ingest()
+        assert len(parcel_paths) == 1
         assert not oldpath.exists()
-        assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
-                == 'hello')
+        assert (dsa.data_path.joinpath(
+            f'{list(parcel_paths.keys())[0]}.txt').read_text() == 'hello')
 
 
 def test_auto_ingest_mtime():
@@ -214,11 +199,11 @@ def test_auto_ingest_mtime():
         oldpath = dsa.path.joinpath('foo', 'blah.txt')
         oldpath.write_text('hello')
         os.utime(oldpath, (10, 1578189722))
-        parcel_ids = dsa._run_ingest()
-        assert parcel_ids == ['2020-01-05T020202Z']
+        parcel_paths = dsa._run_ingest()
+        assert list(parcel_paths.keys()) == ['2020-01-05T020202Z']
         assert not oldpath.exists()
-        assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
-                == 'hello')
+        assert (dsa.data_path.joinpath(
+            f'{list(parcel_paths.keys())[0]}.txt').read_text() == 'hello')
 
 
 def test_ingest_path_existing_parcel():
@@ -515,3 +500,108 @@ def test_parcel_accessors():
         assert parcels[3].find_stdout() is None
         assert parcels[3].find_stderr() == err4
 
+
+def test_process_nothing():
+    with tempdatasetdir() as dsa:
+        assert dsa.process() == ([], [])
+
+
+def test_process_nothing_git():
+    with tempdatasetdir(git=True) as dsa:
+        assert dsa.process() == ([], [])
+        repo = Repo(str(dsa.path))
+        assert repo.head.commit.message == '[export_manager] initialize'
+
+
+def test_process_ingest_and_export():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({
+            'cmd': 'echo yay > $PARCEL_PATH.txt',
+            'ingest': {
+                'paths': 'ingest/*.txt',
+                'time_source': 'mtime',
+            },
+            'interval': '1 day',
+        })
+        dsa.path.joinpath('ingest').mkdir()
+        ipath = dsa.path.joinpath('ingest', 'foo.txt')
+        ipath.write_text('hooray')
+        os.utime(ipath, (10, 1578189722))
+        with freeze_time('2020-03-05T010101Z'):
+            ids, errs = dsa.process()
+        assert ids == ['2020-01-05T020202Z', '2020-03-05T010101Z']
+        assert not errs
+        assert not ipath.exists()
+        pas = dsa.parcel_accessors()
+        assert [p.parcel_id for p in pas] == ids
+        assert pas[0].find_data().read_text() == 'hooray'
+        assert pas[1].find_data().read_text() == 'yay\n'
+        metrics = dsa.read_metrics()
+        assert all([i in metrics for i in ids])
+
+
+def test_process_ingest_obviates_export():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({
+            'cmd': 'echo yay > $PARCEL_PATH.txt',
+            'ingest': {
+                'paths': 'ingest/*.txt',
+                'time_source': 'mtime',
+            },
+            'interval': '1 day',
+        })
+        dsa.path.joinpath('ingest').mkdir()
+        ipath = dsa.path.joinpath('ingest', 'foo.txt')
+        ipath.write_text('hooray')
+        os.utime(ipath, (10, 1578189722))
+        with freeze_time('2020-01-06T010101Z'):
+            ids, errs = dsa.process()
+        assert ids == ['2020-01-05T020202Z']
+        assert not errs
+        assert not ipath.exists()
+        pas = dsa.parcel_accessors()
+        assert [p.parcel_id for p in pas] == ids
+        assert pas[0].find_data().read_text() == 'hooray'
+        metrics = dsa.read_metrics()
+        assert all([i in metrics for i in ids])
+
+
+def test_process_not_due():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({
+            'cmd': 'echo yay > $PARCEL_PATH.txt',
+            'interval': '1 day',
+        })
+        dsa.data_path.joinpath('2020-01-01T010101Z.txt').write_text('ok')
+        with freeze_time('2020-01-02T000000Z'):
+            ids, errs = dsa.process()
+        assert not ids
+        assert not errs
+
+
+def test_process_git():
+    with tempdatasetdir(git=True) as dsa:
+        dsa.write_config({
+            'cmd': 'echo yay > $PARCEL_PATH.txt',
+            'git': True,
+            'ingest': {
+                'paths': 'ingest/*.txt',
+                'time_source': 'mtime',
+            },
+            'interval': '1 day',
+        })
+        dsa.path.joinpath('ingest').mkdir()
+        ipath = dsa.path.joinpath('ingest', 'foo.txt')
+        ipath.write_text('hooray')
+        os.utime(ipath, (10, 1578189722))
+        with freeze_time('2020-03-05T010101Z'):
+            ids, errs = dsa.process()
+        assert ids == ['2020-01-05T020202Z', '2020-03-05T010101Z']
+        assert not errs
+        repo = Repo(str(dsa.path))
+        assert (repo.head.commit.message ==
+                '[export_manager] process new parcels: 2020-01-05T020202Z, '
+                '2020-03-05T010101Z\n2020-01-05T020202Z was ingested from '
+                + str(ipath))
+        assert (list(repo.head.commit.stats.files.keys())
+                == [f'data/{i}.txt' for i in ids] + ['metrics.csv'])

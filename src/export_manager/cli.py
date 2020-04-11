@@ -25,30 +25,15 @@ def _init(args):
 def _process(args):
     status = 0
     for path in args.path:
-        ds = DatasetAccessor(path)
-
-        if ds.is_due():
-            parcel_id = dataset.new_parcel_id()
-            try:
-                ds.run_export(parcel_id)
-            except Exception:
-                status = 2
-                print(f'export failed for {path}', file=sys.stderr)
-                traceback.print_exc()
-
-            try:
-                ds.reprocess_metrics([parcel_id])
-            except Exception:
-                status = 2
-                print(f'metrics failed for {path} parcel_id={parcel_id}',
-                      file=sys.stderr)
-                traceback.print_exc()
-
+        dsa = DatasetAccessor(path)
         try:
-            ds.clean()
+            ids, errs = dsa.process()
+            if errs:
+                status = 2
+            dsa.clean()
         except Exception:
             status = 2
-            print(f'clean failed for {path}', file=sys.stderr)
+            print(f'failed to process {path}', file=sys.stderr)
             traceback.print_exc()
 
     return status
@@ -100,9 +85,10 @@ def main(args=None):
                         help='initialize a git repo')
     p_init.set_defaults(func=_init)
 
-    p_process = subs.add_parser('process',
-                                help='run exports, update metrics, '
-                                     'and perform cleaning, where needed')
+    p_process = subs.add_parser(
+        'process',
+        help='run ingestion and exports, update metrics, '
+             'and perform cleaning, where needed')
     p_process.add_argument('path', nargs='+', help='dataset dir path')
     p_process.set_defaults(func=_process)
 
