@@ -658,3 +658,16 @@ def test_process_git():
                 + str(ipath))
         assert (list(repo.head.commit.stats.files.keys())
                 == [f'data/{i}.txt' for i in ids] + ['metrics.csv'])
+
+
+def test_process_no_cmd_git():
+    with tempdatasetdir(git=True) as dsa:
+        dsa.write_config({
+            'git': True,
+            'interval': '1 day',
+        })
+        ids, errs = dsa.process()
+        assert not ids
+        assert not errs
+        repo = Repo(str(dsa.path))
+        assert repo.head.commit.message == '[export_manager] initialize'

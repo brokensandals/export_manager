@@ -559,32 +559,35 @@ class DatasetAccessor:
 
         if self.is_due():
             export_id = new_parcel_id()
-            parcel_ids.append(export_id)
             try:
-                self._run_export(export_id)
+                export_id = self._run_export(export_id)
             except Exception as e:
                 print(f'export failed for {self.path}', file=sys.stderr)
                 traceback.print_exc()
                 errors.append(e)
 
-        try:
-            self._process_metrics(parcel_ids)
-        except Exception as e:
-            print(f'metrics update failed for {self.path}', file=sys.stderr)
-            traceback.print_exc()
-            errors.append(e)
+            if export_id:
+                parcel_ids.append(export_id)
 
-        message = '[export_manager] process new parcels: ' + ', '.join(parcel_ids)
-        for pid in ingested_paths:
-            message += f'\n{pid} was ingested from {ingested_paths[pid]}'
-        added = ['metrics.csv']
-        for pid in parcel_ids:
-            pa = self.parcel_accessor(pid)
-            dp = pa.find_data()
-            if dp:
-                added.append(str(dp.relative_to(self.path)))
+        if parcel_ids:
+            try:
+                self._process_metrics(parcel_ids)
+            except Exception as e:
+                print(f'metrics update failed for {self.path}', file=sys.stderr)
+                traceback.print_exc()
+                errors.append(e)
 
-        self._commit(message, added)
+            message = '[export_manager] process new parcels: ' + ', '.join(parcel_ids)
+            for pid in ingested_paths:
+                message += f'\n{pid} was ingested from {ingested_paths[pid]}'
+            added = ['metrics.csv']
+            for pid in parcel_ids:
+                pa = self.parcel_accessor(pid)
+                dp = pa.find_data()
+                if dp:
+                    added.append(str(dp.relative_to(self.path)))
+
+            self._commit(message, added)
 
         return parcel_ids, errors
 
