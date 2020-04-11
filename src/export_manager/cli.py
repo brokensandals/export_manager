@@ -12,7 +12,7 @@ from export_manager.report import Report
 def _ingest(args):
     parcel_id = args.parcel_id or dataset.new_parcel_id()
     ds = DatasetAccessor(args.dataset_path[0])
-    ds.ingest(parcel_id, args.ingest_path[0])
+    ds.ingest_path(args.ingest_path[0], parcel_id)
     return 0
 
 

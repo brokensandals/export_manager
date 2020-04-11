@@ -167,7 +167,7 @@ def test_run_export_git():
 
 def test_auto_ingest_no_paths():
     with tempdatasetdir() as dsa:
-        dsa.auto_ingest() # does nothing
+        dsa._run_ingest() # does nothing
 
 
 def test_auto_ingest_no_matches():
@@ -176,7 +176,7 @@ def test_auto_ingest_no_matches():
             'ingest': {
                 'paths': [
                     'foo', 'bar/*.txt', str(Path('bogus').resolve())]}})
-        dsa.auto_ingest()  # does nothing
+        dsa._run_ingest()  # does nothing
 
 
 def test_auto_ingest_absolute():
@@ -186,7 +186,7 @@ def test_auto_ingest_absolute():
         dsa.write_config({'ingest': {'paths': pathglob}})
         dsa.path.joinpath('foo').mkdir()
         oldpath.write_text('hello')
-        parcel_ids = dsa.auto_ingest()
+        parcel_ids = dsa._run_ingest()
         assert len(parcel_ids) == 1
         assert not oldpath.exists()
         assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
@@ -199,7 +199,7 @@ def test_auto_ingest_relative():
         dsa.path.joinpath('foo').mkdir()
         oldpath = dsa.path.joinpath('foo', 'blah.txt')
         oldpath.write_text('hello')
-        parcel_ids = dsa.auto_ingest()
+        parcel_ids = dsa._run_ingest()
         assert len(parcel_ids) == 1
         assert not oldpath.exists()
         assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
@@ -214,38 +214,39 @@ def test_auto_ingest_mtime():
         oldpath = dsa.path.joinpath('foo', 'blah.txt')
         oldpath.write_text('hello')
         os.utime(oldpath, (10, 1578189722))
-        parcel_ids = dsa.auto_ingest()
+        parcel_ids = dsa._run_ingest()
         assert parcel_ids == ['2020-01-05T020202Z']
         assert not oldpath.exists()
         assert (dsa.data_path.joinpath(f'{parcel_ids[0]}.txt').read_text()
                 == 'hello')
 
 
-def test_ingest_existing_parcel():
+def test_ingest_path_existing_parcel():
     with tempdatasetdir() as dsa:
         parcel_id = '2000-01-02T030400Z'
         dsa.data_path.joinpath(f'{parcel_id}.txt').write_text('old')
         path = dsa.path.joinpath('foo')
         with pytest.raises(ParcelExistsException):
-            dsa.ingest(parcel_id, path)
+            dsa.ingest_path(path, parcel_id)
 
 
-def test_ingest_bad_path():
+def test_ingest_path_bad_path():
     with tempdatasetdir() as dsa:
         path = dsa.path.joinpath('foo.txt')
         with pytest.raises(FileNotFoundError):
-            dsa.ingest(dataset.new_parcel_id(), path)
+            dsa.ingest_path(path, dataset.new_parcel_id())
 
 
-def test_ingest():
+def test_ingest_path():
     with tempdatasetdir() as dsa:
         path = dsa.path.joinpath('foo.txt')
         path.write_text('hello')
         parcel_id = dataset.new_parcel_id()
-        dsa.ingest(parcel_id, path)
+        dsa.ingest_path(path, parcel_id)
         assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
         assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
                 == 'hello')
+        assert dsa.read_metrics()[parcel_id]['success'] == 'Y'
 
 
 def test_ingest_git():
@@ -253,10 +254,11 @@ def test_ingest_git():
         path = dsa.path.joinpath('foo.txt')
         path.write_text('hello')
         parcel_id = dataset.new_parcel_id()
-        dsa.ingest(parcel_id, path)
+        dsa.ingest_path(path, parcel_id)
         assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
         assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
                 == 'hello')
+        assert dsa.read_metrics()[parcel_id]['success'] == 'Y'
         repo = Repo(dsa.path)
         assert ([b.name for b in repo.head.commit.tree['data']]
                 == [f'{parcel_id}.txt'])

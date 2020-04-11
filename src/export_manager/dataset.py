@@ -348,6 +348,10 @@ class DatasetAccessor:
 
         return results
 
+    def _process_metrics(self, parcel_ids):
+        updates = {p: self._collect_metrics(p) for p in parcel_ids}
+        self._update_metrics(updates)
+
     def reprocess_metrics(self, parcel_ids):
         """Updates metrics.csv with recalculated values for the given parcels.
 
@@ -355,8 +359,7 @@ class DatasetAccessor:
 
         If git=true in config.toml, this method commits the metrics.csv file.
         """
-        updates = {p: self._collect_metrics(p) for p in parcel_ids}
-        self._update_metrics(updates)
+        self._process_metrics(parcel_ids)
         message = ('[export_manager] reprocess metrics for: '
                    + ', '.join(parcel_ids))
         self._commit(message, ['metrics.csv'])
@@ -422,8 +425,10 @@ class DatasetAccessor:
         self._commit(f'[export_manager] add parcel data for {parcel_id}',
                      [str(newpath.relative_to(self.path))])
 
-    def auto_ingest(self):
-        """Ingests any files matching the configured ingest.paths
+    def _run_ingest(self):
+        """Moves any files matching the configured ingest.paths
+
+        A list of parcel_ids that were created is returned.
 
         This looks at the array property "ingest.paths" in config.toml,
         which should be an array of path globs. If the property is not
@@ -470,12 +475,21 @@ class DatasetAccessor:
                 parcel_id = dt.strftime('%Y-%m-%dT%H%M%SZ')
             elif time_source == 'now':
                 parcel_id = new_parcel_id()
-            self.ingest(parcel_id, path)
+            self._ingest_path(path, parcel_id)
             parcel_ids.append(parcel_id)
         return parcel_ids
 
-    def ingest(self, parcel_id, path):
-        """Moves the specified file or directory into the dataset directory.
+    def _ingest_path(self, path, parcel_id):
+        """Ingests path without processing metrics or committing."""
+        pa = self.parcel_accessor(parcel_id)
+        if pa.is_known():
+            raise ParcelExistsException(parcel_id)
+        path = Path(path)
+        newpath = self.data_path.joinpath(parcel_id).with_suffix(path.suffix)
+        path.rename(newpath)
+
+    def ingest_path(self, path, parcel_id=None):
+        """Ingests the specified file or directory into the dataset directory.
 
         The file/dir will be saved as a (completed) parcel with the given id.
 
@@ -483,17 +497,16 @@ class DatasetAccessor:
         using the new_parcel_id function is recommended.
         The parcel_id must not already be in use.
 
-        If git=true in config.toml, it will be committed to the repo.
+        If git=true in config.toml, the data and metrics will be committed.
         """
+        if not parcel_id:
+            parcel_id = new_parcel_id()
+        self._ingest_path(path, parcel_id)
+        self.reprocess_metrics([parcel_id])
+        message = f'[export_manager] ingest {path} as {parcel_id}'
         pa = self.parcel_accessor(parcel_id)
-        if pa.is_known():
-            raise ParcelExistsException(parcel_id)
-        path = Path(path)
-        newpath = self.data_path.joinpath(parcel_id).with_suffix(path.suffix)
-        path.rename(newpath)
-        self._commit(f'[export_manager] ingest parcel data for {parcel_id}'
-                     f' from {path}',
-                     [str(newpath.relative_to(self.path))])
+        self._commit(message, ['metrics.csv',
+                               str(pa.find_data().relative_to(self.path))])
 
     def find_parcel_ids(self):
         """Returns the ids of extant parcels, as a list of strings.

@@ -15,6 +15,8 @@ def test_ingest():
             assert cli.main(['ingest', rawpath, str(ingest)]) == 0
         assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
                 == 'hello')
+        assert ('2020-04-01T010203Z,Y,1,5'
+                in path.joinpath('metrics.csv').read_text())
 
 
 def test_ingest_given_id():
