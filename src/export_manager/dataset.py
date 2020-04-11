@@ -371,8 +371,9 @@ class DatasetAccessor:
     def _run_export(self, parcel_id):
         """Runs the dataset's export command, without committing.
 
-        The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format;
-        using the new_parcel_id function is recommended.
+        Returns the parcel_id, or None if no export command is configured.
+
+        The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format.
         The parcel_id must not already be in use.
 
         This runs the shell command specified by "cmd" in config.toml.
@@ -400,7 +401,7 @@ class DatasetAccessor:
         cfg = self.read_config()
         cmd = cfg.get('cmd', None)
         if not cmd:
-            return
+            return None
 
         self.incomplete_path.mkdir(exist_ok=True)
         self.log_path.mkdir(exist_ok=True)
@@ -422,6 +423,36 @@ class DatasetAccessor:
         newpath = self.data_path.joinpath(oldpath.name)
         self.data_path.mkdir(exist_ok=True)
         oldpath.rename(newpath)
+
+        return parcel_id
+
+    def perform_export(self, parcel_id=None):
+        """Runs the dataset's export command to produce a new parcel.
+
+        Returns the parcel_id used, or None if there is no export command
+        configured for the dataset.
+
+        See _run_export for details on how export commands are configured.
+        By default new_parcel_id() is used for the parcel_id.
+
+        Updates metrics.csv.
+
+        If git=true in config.toml, commits the metrics and data file.
+        Incomplete data files are not committed.
+        """
+        parcel_id = self._run_export(parcel_id or new_parcel_id())
+        added = []
+        if parcel_id:
+            self._process_metrics([parcel_id])
+            added.append('metrics.csv')
+            pa = self.parcel_accessor(parcel_id)
+            if pa:
+                dp = pa.find_data()
+                if dp:
+                    added.append(str(dp.relative_to(self.path)))
+        message = f'[export_manager] add new export {parcel_id}'
+        self._commit(message, added)
+        return parcel_id
 
     def _run_ingest(self):
         """Moves any files matching the configured ingest.paths
@@ -493,7 +524,7 @@ class DatasetAccessor:
         The file/dir will be saved as a (completed) parcel with the given id.
 
         The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format;
-        using the new_parcel_id function is recommended.
+        by default new_parcel_id() is used.
         The parcel_id must not already be in use.
 
         If git=true in config.toml, the data and metrics will be committed.

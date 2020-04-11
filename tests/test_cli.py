@@ -5,6 +5,34 @@ from tempfile import TemporaryDirectory
 from export_manager import cli
 
 
+def test_export():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text("""
+                cmd = "echo hello > $PARCEL_PATH.txt"
+                """)
+        with freeze_time('2020-04-01T010203Z'):
+            assert cli.main(['export', rawpath]) == 0
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello\n')
+        assert ('2020-04-01T010203Z,Y,1,6'
+                in path.joinpath('metrics.csv').read_text())
+
+
+def test_export_given_id():
+    with TemporaryDirectory() as rawpath:
+        assert cli.main(['init', rawpath]) == 0
+        path = Path(rawpath)
+        path.joinpath('config.toml').write_text("""
+                cmd = "echo hello > $PARCEL_PATH.txt"
+                """)
+        assert cli.main(['export', '-p', '2020-04-01T010203Z',
+                         rawpath]) == 0
+        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
+                == 'hello\n')
+
+
 def test_ingest():
     with TemporaryDirectory() as rawpath:
         assert cli.main(['init', rawpath]) == 0

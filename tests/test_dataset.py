@@ -150,6 +150,59 @@ def test_run_export():
         assert dsa.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
 
 
+def test_perform_export_no_cmd():
+    with tempdatasetdir() as dsa:
+        dsa.perform_export()
+        assert sum(1 for x in dsa.data_path.glob('*')) == 0
+        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
+
+
+def test_perform_export_no_cmd_git():
+    with tempdatasetdir(git=True) as dsa:
+        dsa.perform_export()
+        assert sum(1 for x in dsa.data_path.glob('*')) == 0
+        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
+        repo = Repo(str(dsa.path))
+        assert repo.head.commit.message == '[export_manager] initialize'
+
+
+def test_perform_export():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt'})
+        parcel_id = dsa.perform_export()
+        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
+        assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
+                == 'hi\n')
+        assert dsa.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
+        assert dsa.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
+
+
+def test_perform_export_given_id():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt'})
+        parcel_id = '2001-01-01T010101Z'
+        assert dsa.perform_export(parcel_id) == parcel_id
+        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
+        assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
+                == 'hi\n')
+        assert dsa.log_path.joinpath(f'{parcel_id}.out').read_text() == ''
+        assert dsa.log_path.joinpath(f'{parcel_id}.err').read_text() == ''
+
+
+def test_perform_export_git():
+    with tempdatasetdir(git=True) as dsa:
+        dsa.write_config({'cmd': 'echo hi > $PARCEL_PATH.txt', 'git': True})
+        parcel_id = dsa.perform_export()
+        assert sum(1 for x in dsa.incomplete_path.glob('*')) == 0
+        assert (dsa.data_path.joinpath(f'{parcel_id}.txt').read_text()
+                == 'hi\n')
+        repo = Repo(str(dsa.path))
+        assert (repo.head.commit.message
+                == f'[export_manager] add new export {parcel_id}')
+        assert (list(repo.head.commit.stats.files.keys())
+                == [f'data/{parcel_id}.txt', 'metrics.csv'])
+
+
 def test_auto_ingest_no_paths():
     with tempdatasetdir() as dsa:
         dsa._run_ingest() # does nothing
@@ -234,7 +287,7 @@ def test_ingest_path():
         assert dsa.read_metrics()[parcel_id]['success'] == 'Y'
 
 
-def test_ingest_git():
+def test_ingest_path_git():
     with tempdatasetdir(git=True) as dsa:
         path = dsa.path.joinpath('foo.txt')
         path.write_text('hello')

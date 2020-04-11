@@ -9,10 +9,16 @@ from export_manager.dataset import DatasetAccessor
 from export_manager.report import Report
 
 
+def _export(args):
+    for path in args.path:
+        dsa = DatasetAccessor(path)
+        dsa.perform_export(args.parcel_id)
+    return 0
+
+
 def _ingest(args):
-    parcel_id = args.parcel_id or dataset.new_parcel_id()
     ds = DatasetAccessor(args.dataset_path[0])
-    ds.ingest_path(args.ingest_path[0], parcel_id)
+    ds.ingest_path(args.ingest_path[0], args.parcel_id)
     return 0
 
 
@@ -67,6 +73,16 @@ def main(args=None):
     parser.set_defaults(func=None)
 
     subs = parser.add_subparsers(title='Commands')
+
+    p_export = subs.add_parser(
+        'export',
+        help='run dataset export commands to produce new parcels')
+    p_export.add_argument('path', nargs='+', help='dataset dir path')
+    p_export.add_argument('-p', '--parcel_id', nargs='?',
+                          help='parcel_id for new parcel '
+                               '(format: yyyy-mm-ddThhmmssZ) '
+                               '(defaults to current timestamp)')
+    p_export.set_defaults(func=_export)
 
     p_ingest = subs.add_parser(
         'ingest',
