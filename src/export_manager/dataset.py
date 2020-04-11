@@ -16,6 +16,7 @@ import csv
 from datetime import datetime
 from datetime import timedelta
 from git import Repo
+import glob
 from operator import itemgetter
 from pathlib import Path
 import re
@@ -43,6 +44,16 @@ _INITIAL_METRICS_CSV = "parcel_id,success,files,bytes"
 _PARCEL_ID_FORMAT = re.compile('\\A\\d{4}-\\d{2}-\\d{2}T\\d{6}Z\\Z')
 
 
+class ParcelIDFormatException(Exception):
+    """Indicates an invalid parcel_id was used."""
+    pass
+
+
+class ParcelExistsException(Exception):
+    """Indicates an attempt to use a parcel_id that already exists."""
+    pass
+
+
 def new_parcel_id():
     """Generates a parcel ID corresponding to the current time."""
     return datetime.utcnow().strftime('%Y-%m-%dT%H%M%SZ')
@@ -64,7 +75,7 @@ def parse_parcel_id(parcel_id):
     Raises ValueError if it is invalid.
     """
     if not _PARCEL_ID_FORMAT.match(parcel_id):
-        raise ValueError(f'invalid parcel_id: {parcel_id}')
+        raise ParcelIDFormatException(parcel_id)
     return datetime.strptime(parcel_id, '%Y-%m-%dT%H%M%S%z')
 
 
@@ -128,6 +139,18 @@ class ParcelAccessor:
         if path.is_file():
             return path
         return None
+
+    def is_known(self):
+        """Returns True if there is any record of this parcel existing.
+
+        The presence of a complete or incomplete data file, log files, or
+        an entry in metrics.csv counts.
+        """
+        return bool(self.find_data()
+                    or self.find_incomplete()
+                    or self.find_stdout()
+                    or self.find_stderr()
+                    or self.parcel_id in self.dataset_accessor.read_metrics())
 
 
 class DatasetAccessor:
@@ -329,6 +352,7 @@ class DatasetAccessor:
 
         The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format;
         using the new_parcel_id function is recommended.
+        The parcel_id must not already be in use.
 
         This runs the shell command specified by "cmd" in config.toml.
         If none is specified, this method does nothing.
@@ -351,8 +375,9 @@ class DatasetAccessor:
         If git=True in config.toml and the command is successful, the
         data file(s) it produces will be committed to the repo.
         """
-        if not _PARCEL_ID_FORMAT.match(parcel_id):
-            raise Exception(f'invalid parcel_id: {parcel_id}')
+        pa = self.parcel_accessor(parcel_id)
+        if pa.is_known():
+            raise ParcelExistsException(parcel_id)
 
         cfg = self.read_config()
         cmd = cfg.get('cmd', None)
@@ -381,6 +406,67 @@ class DatasetAccessor:
         oldpath.rename(newpath)
 
         self._commit(f'[export_manager] add parcel data for {parcel_id}',
+                     [str(newpath.relative_to(self.path))])
+
+    def auto_ingest(self):
+        """Ingests any files matching the configured ingest.paths
+
+        This looks at the array property "ingest.paths" in config.toml,
+        which should be an array of path globs. If the property is not
+        set, this method does nothing.
+
+        The paths may be absolute, or relative to the dataset dir.
+
+        All files/dirs matching the globs will be ingested - see
+        the ingest method.
+
+        FIXME: Right now this won't generally work if multiple paths
+               match, since the same parcel ID will be generated for
+               each. Producing multiple parcels within one second is
+               really outside the intended usage of this project,
+               but the fact that it doesn't work is pretty ugly.
+        """
+        cfg = self.read_config()
+        pathglobs = cfg.get('ingest', {}).get('paths', [])
+        if not pathglobs:
+            return
+        if isinstance(pathglobs, str):
+            pathglobs = [pathglobs]
+        found = []
+        for pathglob in pathglobs:
+            # Checking specifically for '~' is super hacky, but I haven't
+            # found a better way to do this.
+            if Path(pathglob).is_absolute() or pathglob.startswith('~'):
+                found += glob.glob(pathglob, recursive=True)
+            else:
+                found += list(self.path.glob(pathglob))
+
+        parcel_ids = []
+        for path in found:
+            parcel_id = new_parcel_id()
+            self.ingest(parcel_id, path)
+            parcel_ids.append(parcel_id)
+        return parcel_ids
+
+    def ingest(self, parcel_id, path):
+        """Moves the specified file or directory into the dataset directory.
+
+        The file/dir will be saved as a (completed) parcel with the given id.
+
+        The given parcel_id must be in the YYYY-MM-DDTHHMMSSZ format;
+        using the new_parcel_id function is recommended.
+        The parcel_id must not already be in use.
+
+        If git=true in config.toml, it will be committed to the repo.
+        """
+        pa = self.parcel_accessor(parcel_id)
+        if pa.is_known():
+            raise ParcelExistsException(parcel_id)
+        path = Path(path)
+        newpath = self.data_path.joinpath(parcel_id).with_suffix(path.suffix)
+        path.rename(newpath)
+        self._commit(f'[export_manager] ingest parcel data for {parcel_id}'
+                     f' from {path}',
                      [str(newpath.relative_to(self.path))])
 
     def find_parcel_ids(self):
