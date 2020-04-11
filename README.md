@@ -90,6 +90,30 @@ The `process` command gathers all the configured metrics every time a new parcel
 
 If you make your dataset directory a git repo, and set `git = true` in `config.toml`, then the data files of successful exports, as well as the metrics.csv file, will be committed after each change.
 
+## Ingesting Files Directly
+
+Some services are prohibitively difficult to export from automatically, but do provide a way to manually export your data.
+export\_manager can keep track of those manual exports for you.
+To minimize the amount of manual work, you can configure it to automatically pull in any files that match a certain path pattern, so that all you need to do is dump the manually exported file into that location.
+For example, if you put the following in `config.toml`:
+
+```toml
+ingest.paths = ["/Users/me/Dropbox/*.opml"]
+# The next line means that the ingested file's modification date should be
+# used as the parcel ID for the new parcel. If you omit this config or
+# specify "now", the current date/time will be used instead.
+ingest.time_source = "mtime"
+```
+
+Then every time the `process` command is run, export\_manager will check for files with that suffix in `/Users/me/Dropbox`.
+If it finds any, it will **move** them into the dataset directory, assign them a parcel ID, run metrics on them, etc.
+
+You can also ingest individual parcels manually using the `ingest` command:
+
+```bash
+export_manager ingest ~/exports/todoist-zips ~/Downloads/todoist-backup-12345.zip
+```
+
 ## Development
 
 Setup:
