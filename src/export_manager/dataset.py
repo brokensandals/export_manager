@@ -256,7 +256,7 @@ class DatasetAccessor:
                 results[parcel_id] = row
         return results
 
-    def update_metrics(self, updates):
+    def _update_metrics(self, updates):
         """Creates or updates metrics for specified parcels.
 
         The input is a dict mapping parcel_ids to a dict of metrics.
@@ -270,7 +270,6 @@ class DatasetAccessor:
         row, those metrics will be replaced with empty strings.
 
         metrics.csv is created or updated by this method.
-        If git=True in config.toml, metrics.csv is also committed.
         """
         metrics = self.read_metrics()
         field_order = []
@@ -291,9 +290,7 @@ class DatasetAccessor:
             writer.writeheader()
             writer.writerows(rows)
 
-        self._commit('[export_manager] update metrics', ['metrics.csv'])
-
-    def collect_metrics(self, parcel_id):
+    def _collect_metrics(self, parcel_id):
         """Calculates metrics for the parcel and returns them as a dict.
 
         The result is a map of string keys to string values.
@@ -324,7 +321,8 @@ class DatasetAccessor:
                        variable will include the file extension, if any.
         """
         results = {'parcel_id': parcel_id}
-        path = _find_parcel_data_path(self.data_path, parcel_id)
+        pa = self.parcel_accessor(parcel_id)
+        path = pa.find_data()
         if path:
             results['success'] = 'Y'
         else:
@@ -349,6 +347,19 @@ class DatasetAccessor:
                     print(e, file=sys.stderr)
 
         return results
+
+    def reprocess_metrics(self, parcel_ids):
+        """Updates metrics.csv with recalculated values for the given parcels.
+
+        See the _collect_metrics method for details on how metrics are built.
+
+        If git=true in config.toml, this method commits the metrics.csv file.
+        """
+        updates = {p: self._collect_metrics(p) for p in parcel_ids}
+        self._update_metrics(updates)
+        message = ('[export_manager] reprocess metrics for: '
+                   + ', '.join(parcel_ids))
+        self._commit(message, ['metrics.csv'])
 
     def run_export(self, parcel_id):
         """Runs the dataset's export command to produce a parcel.

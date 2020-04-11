@@ -30,7 +30,7 @@ def touch_metrics(dsa, parcel_id='2000-01-01T010101Z', row=None):
     if not row:
         row = {'files': '1', 'bytes': '10'}
     row = {'parcel_id': parcel_id, **row}
-    dsa.update_metrics({parcel_id: row})
+    dsa._update_metrics({parcel_id: row})
 
 
 def warnlines(s):

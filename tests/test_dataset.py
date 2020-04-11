@@ -75,7 +75,7 @@ def test_update_metrics():
                 'party_intensity': '1',
             },
         }
-        dsa.update_metrics(initial)
+        dsa._update_metrics(initial)
         assert dsa.read_metrics() == initial
 
         updates = {
@@ -89,7 +89,7 @@ def test_update_metrics():
                 'bugs': '2000000000',
             },
         }
-        dsa.update_metrics(updates)
+        dsa._update_metrics(updates)
         expected = {
             '1999-01-02T030405Z': {
                 'parcel_id': '1999-01-02T030405Z',
@@ -319,14 +319,14 @@ def test_clean_git():
 def test_collect_metrics_no_data():
     with tempdatasetdir() as dsa:
         pid = '2000-01-02T030405Z'
-        assert dsa.collect_metrics(pid) == {'parcel_id': pid, 'success': 'N'}
+        assert dsa._collect_metrics(pid) == {'parcel_id': pid, 'success': 'N'}
 
 
 def test_collect_metrics_incomplete():
     with tempdatasetdir() as dsa:
         pid = '2000-01-02T030405Z'
         dsa.incomplete_path.joinpath(f'{pid}.txt').write_text('hello')
-        assert dsa.collect_metrics(pid) == {
+        assert dsa._collect_metrics(pid) == {
             'parcel_id': pid,
             'success': 'N',
             'bytes': '5',
@@ -338,7 +338,7 @@ def test_collect_metrics_complete():
     with tempdatasetdir() as dsa:
         pid = '2000-01-02T030405Z'
         dsa.data_path.joinpath(f'{pid}.txt').write_text('hello')
-        assert dsa.collect_metrics(pid) == {
+        assert dsa._collect_metrics(pid) == {
             'parcel_id': pid,
             'success': 'Y',
             'bytes': '5',
@@ -352,7 +352,7 @@ def test_collect_metrics_custom():
         dsa.data_path.joinpath(f'{pid}.txt').write_text('hello\nhi\nhola\n')
         dsa.write_config(
             {'metrics': {'lines': {'cmd': 'wc -l < $PARCEL_PATH'}}})
-        assert dsa.collect_metrics(pid) == {
+        assert dsa._collect_metrics(pid) == {
             'parcel_id': pid,
             'success': 'Y',
             'bytes': '14',
@@ -367,13 +367,58 @@ def test_collect_metrics_error():
         dsa.data_path.joinpath(f'{pid}.txt').write_text('hello\nhi\nhola\n')
         dsa.write_config(
             {'metrics': {'lines': {'cmd': 'wc -l < $PARCEL_PATH.oops'}}})
-        assert dsa.collect_metrics(pid) == {
+        assert dsa._collect_metrics(pid) == {
             'parcel_id': pid,
             'success': 'Y',
             'bytes': '14',
             'files': '1',
             'lines': 'ERROR',
         }
+
+
+def test_reprocess_metrics():
+    with tempdatasetdir() as dsa:
+        dsa._update_metrics(
+            {'2000-01-01T010101Z': {
+                'parcel_id': '2000-01-01T010101Z',
+                'success': 'Y',
+                'foo': 'bar'}})
+        pid = '2000-01-02T030405Z'
+        ipath = dsa.incomplete_path.joinpath(f'{pid}.txt')
+        ipath.write_text('hi')
+        dsa.reprocess_metrics([pid])
+        assert dsa.read_metrics() == {
+            '2000-01-01T010101Z': {
+                'parcel_id': '2000-01-01T010101Z',
+                'success': 'Y',
+                'foo': 'bar',
+                'bytes': '',
+                'files': '',
+            },
+            pid: {
+                'parcel_id': pid,
+                'success': 'N',
+                'foo': '',
+                'bytes': '2',
+                'files': '1',
+            },
+        }
+        cpath = dsa.data_path.joinpath(f'{pid}.txt')
+        ipath.rename(cpath)
+        dsa.reprocess_metrics([pid])
+        assert dsa.read_metrics()[pid]['success'] == 'Y'
+
+
+def test_reprocess_metrics_git():
+    with tempdatasetdir(git=True) as dsa:
+        pid = '2000-01-02T030405Z'
+        Path(dsa.data_path.joinpath(f'{pid}.txt')).write_text('hi')
+        dsa.reprocess_metrics([pid])
+        repo = Repo(str(dsa.path))
+        assert (repo.head.commit.message
+                == f'[export_manager] reprocess metrics for: {pid}')
+        assert list(repo.head.commit.stats.files.keys()) == ['metrics.csv']
+        assert dsa.read_metrics()[pid]['bytes'] == '2'
 
 
 def test_is_due_no_interval():

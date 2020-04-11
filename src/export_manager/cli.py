@@ -3,6 +3,7 @@
 
 import argparse
 import sys
+import traceback
 from export_manager import dataset
 from export_manager.dataset import DatasetAccessor
 from export_manager.report import Report
@@ -30,24 +31,25 @@ def _process(args):
             parcel_id = dataset.new_parcel_id()
             try:
                 ds.run_export(parcel_id)
-            except Exception as e:
+            except Exception:
                 status = 2
                 print(f'export failed for {path}', file=sys.stderr)
-                print(e, file=sys.stderr)
+                traceback.print_exc()
 
             try:
-                metrics = ds.collect_metrics(parcel_id)
-                ds.update_metrics({parcel_id: metrics})
-            except Exception as e:
+                ds.reprocess_metrics([parcel_id])
+            except Exception:
+                status = 2
                 print(f'metrics failed for {path} parcel_id={parcel_id}',
                       file=sys.stderr)
-                print(e, file=sys.stderr)
+                traceback.print_exc()
 
         try:
             ds.clean()
-        except Exception as e:
+        except Exception:
+            status = 2
             print(f'clean failed for {path}', file=sys.stderr)
-            print(e, file=sys.stderr)
+            traceback.print_exc()
 
     return status
 
@@ -62,14 +64,11 @@ def _report(args):
 def _reprocess_metrics(args):
     for path in args.path:
         ds = DatasetAccessor(path)
-        updates = {}
         if args.parcel_id:
-            updates[args.parcel_id] = ds.collect_metrics(args.parcel_id)
+            parcel_ids = [args.parcel_id]
         else:
-            updates = {}
-            for parcel_id in ds.find_parcel_ids():
-                updates[parcel_id] = ds.collect_metrics(parcel_id)
-        ds.update_metrics(updates)
+            parcel_ids = ds.find_parcel_ids()
+        ds.reprocess_metrics(parcel_ids)
     return 0
 
 
