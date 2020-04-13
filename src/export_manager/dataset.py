@@ -651,6 +651,34 @@ class DatasetAccessor:
         now = datetime.now(last.tzinfo)
         return (now - last) >= delta
 
+    def _clean_parcel(self, parcel_accessor):
+        rm = []
+
+        out_path = parcel_accessor.find_stdout()
+        if out_path:
+            out_path.unlink()
+
+        err_path = parcel_accessor.find_stderr()
+        if err_path:
+            err_path.unlink()
+
+        incomplete = parcel_accessor.find_incomplete()
+        if incomplete:
+            if incomplete.is_file():
+                incomplete.unlink()
+            if incomplete.is_dir():
+                shutil.rmtree(incomplete)
+
+        complete = parcel_accessor.find_data()
+        if complete:
+            rm.append(complete)
+            if complete.is_file():
+                complete.unlink()
+            if complete.is_dir():
+                shutil.rmtree(complete)
+
+        return rm
+
     def _clean(self):
         """Removes old parcels without committing.
 
@@ -660,13 +688,11 @@ class DatasetAccessor:
         property in config.toml. If that property is missing, this method
         does nothing.
 
-        All but the most recent N parcels (where N = value of "keep") will
-        be deleted. Complete and incomplete data files, and log files, are
-        deleted. Currently, the most recent parcels are kept regardless of
-        their completeness status, so it is possible that only incomplete
-        parcels remain after this method runs.
-
-        Nothing is removed from metrics.csv.
+        All but the most recent N complete parcels (where N = value of "keep")
+        will be deleted. If the most recent parcel is incomplete, it will be
+        kept as well. When a parcel is deleted, its data files (complete or
+        incomplete) and log files are deleted, but it is not removed from
+        metrics.csv.
         """
         cfg = self.read_config()
         keep = cfg.get('keep', None)
@@ -676,34 +702,14 @@ class DatasetAccessor:
         rm = []
 
         parcels = self.parcel_accessors()
-        while len(parcels) > keep:
-            out_path = parcels[0].find_stdout()
-            if out_path:
-                out_path.unlink()
-
-            err_path = parcels[0].find_stderr()
-            if err_path:
-                err_path.unlink()
-
-            # TODO: it would probably be best to ensure we keep a certain
-            #   number of complete parcels regardless of how many incomplete
-            #   parcels there are
-            incomplete = parcels[0].find_incomplete()
-            if incomplete:
-                if incomplete.is_file():
-                    incomplete.unlink()
-                if incomplete.is_dir():
-                    shutil.rmtree(incomplete)
-
-            complete = parcels[0].find_data()
-            if complete:
-                rm.append(complete)
-                if complete.is_file():
-                    complete.unlink()
-                if complete.is_dir():
-                    shutil.rmtree(complete)
-
-            parcels.pop(0)
+        complete = [p for p in parcels if p.is_complete()]
+        incomplete = [p for p in parcels if p not in complete]
+        for pa in incomplete:
+            if pa != parcels[-1]:  # never delete newest parcel
+                rm += self._clean_parcel(pa)
+        while len(complete) > keep:
+            rm += self._clean_parcel(complete[0])
+            complete.pop(0)
 
         return rm
 

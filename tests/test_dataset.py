@@ -328,7 +328,11 @@ def test_clean_no_keep():
 
 def test_clean():
     with tempdatasetdir() as dsa:
-        dsa.write_config({'keep': 4})
+        # 10 parcels, alternating between complete and incomplete
+        # newest parcel is incomplete
+        # keep = 3
+        # So, we should keep the newest, plus the 3 latest complete
+        dsa.write_config({'keep': 3})
         for i in range(10):
             p_id = f'2000-01-02T03040{i}Z'
             if i % 2 == 0:
@@ -340,14 +344,18 @@ def test_clean():
             if i % 4 == 0:
                 dsa.log_path.joinpath(f'{p_id}.err').touch()
         dsa.clean()
-        assert (list(p.name for p in dsa.data_path.glob('*'))
-                == ['2000-01-02T030406Z.txt', '2000-01-02T030408Z.txt'])
+        assert (sorted(list(p.name for p in dsa.data_path.glob('*')))
+                == ['2000-01-02T030404Z.txt',
+                    '2000-01-02T030406Z.txt',
+                    '2000-01-02T030408Z.txt'])
         assert (list(p.name for p in dsa.incomplete_path.glob('*'))
-                == ['2000-01-02T030407Z.txt', '2000-01-02T030409Z.txt'])
-        assert (list(p.name for p in dsa.log_path.glob('*.out'))
-                == ['2000-01-02T030406Z.out', '2000-01-02T030409Z.out'])
-        assert (list(p.name for p in dsa.log_path.glob('*.err'))
-                == ['2000-01-02T030408Z.err'])
+                == ['2000-01-02T030409Z.txt'])
+        assert (sorted(list(p.name for p in dsa.log_path.glob('*.out')))
+                == ['2000-01-02T030406Z.out',
+                    '2000-01-02T030409Z.out'])
+        assert (sorted(list(p.name for p in dsa.log_path.glob('*.err')))
+                == ['2000-01-02T030404Z.err',
+                    '2000-01-02T030408Z.err'])
 
 
 def test_clean_git():

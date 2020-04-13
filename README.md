@@ -49,7 +49,7 @@ Terminology:
     cmd = "TODOIST_API_TOKEN=your_token exporteer_todoist full_sync > $PARCEL_PATH.json"
     # Only get a new export if the last one is at least 1 day old.
     interval = "1 day"
-    # Only keep the most recent 5 exports.
+    # Only keep the most recent 5 successful exports.
     # If you don't specify this, export_manager will not delete old exports.
     keep = 5
     ```
