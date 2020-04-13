@@ -1,8 +1,27 @@
 from freezegun import freeze_time
 from git import Repo
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
+import pytest
 from export_manager import cli
+
+
+def test_help(capsys):
+    """Writes usage info to the doc/ folder."""
+    doc = Path('doc')
+    with pytest.raises(SystemExit):
+        cli.main(['-h'])
+    cap = capsys.readouterr()
+    doc.joinpath('usage.txt').write_text(
+        cap.out.replace('pytest', 'export_manager'))
+    cmds = re.search('\\{(.+)\\}', cap.out).group(1)
+    for cmd in cmds.split(','):
+        with pytest.raises(SystemExit):
+            cli.main([cmd, '-h'])
+        cap = capsys.readouterr()
+        doc.joinpath(f'usage-{cmd}.txt').write_text(
+            cap.out.replace('pytest', 'export_manager'))
 
 
 def test_export():

@@ -1,0 +1,10 @@
+usage: export_manager export [-h] [-p [PARCEL_ID]] path [path ...]
+
+positional arguments:
+  path                  dataset dir path
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p [PARCEL_ID], --parcel_id [PARCEL_ID]
+                        parcel_id for new parcel (format: yyyy-mm-ddThhmmssZ)
+                        (defaults to current timestamp)

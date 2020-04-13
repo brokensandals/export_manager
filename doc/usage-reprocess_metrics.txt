@@ -1,0 +1,10 @@
+usage: export_manager reprocess_metrics [-h] [-p [PARCEL_ID]] path [path ...]
+
+positional arguments:
+  path                  dataset dir path
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p [PARCEL_ID], --parcel_id [PARCEL_ID]
+                        only reprocess specific parcel (format: yyyy-mm-
+                        ddThhmmssZ)

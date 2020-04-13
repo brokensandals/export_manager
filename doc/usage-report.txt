@@ -1,0 +1,7 @@
+usage: export_manager report [-h] path [path ...]
+
+positional arguments:
+  path        dataset dir path
+
+optional arguments:
+  -h, --help  show this help message and exit

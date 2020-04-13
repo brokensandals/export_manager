@@ -114,6 +114,13 @@ You can also ingest individual parcels manually using the `ingest` command:
 export_manager ingest ~/exports/todoist-zips ~/Downloads/todoist-backup-12345.zip
 ```
 
+## Additional Documentation
+
+Help for each command is available on the command line and in the [doc folder](doc/).
+
+You can use export\_manager programmatically.
+The most important module is [export\_manager.dataset](src/export_manager/dataset.py).
+
 ## Development
 
 Setup:

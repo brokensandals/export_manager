@@ -1,0 +1,8 @@
+usage: export_manager init [-h] [-g] path [path ...]
+
+positional arguments:
+  path        dataset dir path
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -g, --git   initialize a git repo
