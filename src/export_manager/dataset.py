@@ -236,6 +236,7 @@ class DatasetAccessor:
                 repo.index.remove(rm, r=True)
             if repo.is_dirty():
                 repo.index.commit(message)
+                repo.git.gc()
 
     def read_metrics(self):
         """Returns a dict of parcel_ids to parcel metrics.
