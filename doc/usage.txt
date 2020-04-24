@@ -1,12 +1,12 @@
-usage: export_manager [-h] {export,ingest,init,process,report,reprocess_metrics} ...
+usage: export_manager [-h]
+                            {export,init,process,report,reprocess_metrics} ...
 
 optional arguments:
   -h, --help            show this help message and exit
 
 Commands:
-  {export,ingest,init,process,report,reprocess_metrics}
+  {export,init,process,report,reprocess_metrics}
     export              run dataset export commands to produce new parcels
-    ingest              move a file/dir into a dataset
     init                initialize new dataset dirs
     process             run ingestion and exports, update metrics, and perform
                         cleaning, where needed

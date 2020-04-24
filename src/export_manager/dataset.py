@@ -473,8 +473,8 @@ class DatasetAccessor:
         The parcel_ids will be chosen based on the property
         "ingest.time_source" in config.toml, which may have the following
         values:
-        - "mtime" - modification time of the file
-        - "now" (default) - create a new parcel_id based on current time
+        - "mtime" (default) - modification time of the file
+        - "now" - create a new parcel_id based on current time
         """
         cfg = self.read_config()
         pathglobs = cfg.get('ingest', {}).get('paths', [])
@@ -492,7 +492,7 @@ class DatasetAccessor:
             else:
                 found += list(self.path.glob(pathglob))
 
-        time_source = cfg.get('ingest').get('time_source', 'now')
+        time_source = cfg.get('ingest').get('time_source', 'mtime')
         if time_source not in _VALID_INGEST_TIME_SOURCES:
             raise Exception('invalid ingest.time_source '
                             f'(expected one of {_VALID_INGEST_TIME_SOURCES}) '

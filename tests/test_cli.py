@@ -14,14 +14,14 @@ def test_help(capsys):
         cli.main(['-h'])
     cap = capsys.readouterr()
     doc.joinpath('usage.txt').write_text(
-        cap.out.replace('pytest', 'export_manager'))
+        re.sub(r'\S*pytest\S*', 'export_manager', cap.out))
     cmds = re.search('\\{(.+)\\}', cap.out).group(1)
     for cmd in cmds.split(','):
         with pytest.raises(SystemExit):
             cli.main([cmd, '-h'])
         cap = capsys.readouterr()
         doc.joinpath(f'usage-{cmd}.txt').write_text(
-            cap.out.replace('pytest', 'export_manager'))
+            re.sub(r'\S*pytest\S*', 'export_manager', cap.out))
 
 
 def test_export():
@@ -50,32 +50,6 @@ def test_export_given_id():
                          rawpath]) == 0
         assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
                 == 'hello\n')
-
-
-def test_ingest():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        ingest = path.joinpath('foo.txt')
-        ingest.write_text('hello')
-        with freeze_time('2020-04-01T010203Z'):
-            assert cli.main(['ingest', rawpath, str(ingest)]) == 0
-        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
-                == 'hello')
-        assert ('2020-04-01T010203Z,Y,1,5'
-                in path.joinpath('metrics.csv').read_text())
-
-
-def test_ingest_given_id():
-    with TemporaryDirectory() as rawpath:
-        assert cli.main(['init', rawpath]) == 0
-        path = Path(rawpath)
-        ingest = path.joinpath('foo.txt')
-        ingest.write_text('hello')
-        assert cli.main(['ingest', '-p', '2020-04-01T010203Z',
-                         rawpath, str(ingest)]) == 0
-        assert (path.joinpath('data', '2020-04-01T010203Z.txt').read_text()
-                == 'hello')
 
 
 def test_init():

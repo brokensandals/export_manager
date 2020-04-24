@@ -99,20 +99,13 @@ For example, if you put the following in `config.toml`:
 
 ```toml
 ingest.paths = ["/Users/me/Dropbox/*.opml"]
-# The next line means that the ingested file's modification date should be
-# used as the parcel ID for the new parcel. If you omit this config or
-# specify "now", the current date/time will be used instead.
-ingest.time_source = "mtime"
 ```
 
 Then every time the `process` command is run, export\_manager will check for files with that suffix in `/Users/me/Dropbox`.
 If it finds any, it will **move** them into the dataset directory, assign them a parcel ID, run metrics on them, etc.
 
-You can also ingest individual parcels manually using the `ingest` command:
-
-```bash
-export_manager ingest ~/exports/todoist-zips ~/Downloads/todoist-backup-12345.zip
-```
+(By default, the modification time of the file is used as the parcel ID.
+You can put `ingest.time_source = "now"` in your `config.toml` if you'd rather use the current date/time as the parcel ID.)
 
 ## Additional Documentation
 
