@@ -633,8 +633,9 @@ class DatasetAccessor:
         even if the previous export actually happened slightly less than a day
         ago.
 
-        Due date is determined using the date of the most recent extant parcel
-        (complete or incomplete) and the "interval" property in config.toml.
+        Due date is determined using the date of the most recent extant
+        complete parcel (incomplete parcels are NOT counted) and the
+        "interval" property in config.toml.
         If interval is not configured, this method returns False.
 
         Interval should be a string such as "1 day", "3 hours", etc.
@@ -645,10 +646,10 @@ class DatasetAccessor:
             return False
         delta = _interval.parse_delta(delta_str) - margin
 
-        ids = self.find_parcel_ids()
-        if not ids:
+        pas = [pa for pa in self.parcel_accessors() if pa.is_complete()]
+        if not pas:
             return True
-        last = parse_parcel_id(ids[-1])
+        last = pas[-1].datetime
         now = datetime.now(last.tzinfo)
         return (now - last) >= delta
 

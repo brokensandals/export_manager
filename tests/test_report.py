@@ -77,24 +77,29 @@ def test_has_no_complete():
 @freeze_time('2010-01-05T050000Z')
 def test_is_overdue():
     with tempdatasets(5) as dsas:
+        # due because no parcels exist
         dsas[0].write_config({'interval': '1 hour'})
+        # due because the interval has elapsed since the last parcel
         dsas[1].write_config({'interval': '1 hour'})
         touch_data(dsas[1], '2010-01-05T033000Z')
         touch_metrics(dsas[1], '2010-01-05T033000Z')
+        # not due, because complete parcel exists within interval
         dsas[2].write_config({'interval': '1 hour'})
         touch_data(dsas[2], '2010-01-05T033000Z')
         touch_data(dsas[2], '2010-01-05T040500Z')
         touch_metrics(dsas[2], '2010-01-05T040500Z')
+        # due because only an incomplete parcel exists within interval
         dsas[3].write_config({'interval': '1 hour'})
         touch_data(dsas[3], '2010-01-05T033000Z')
         touch_metrics(dsas[3], '2010-01-05T033000Z')
         touch_incomplete(dsas[3], '2010-01-05T040500Z')
+        # ds4 is not due because it has no interval
         r = Report(dsas)
-        assert r.is_overdue == [dsas[0], dsas[1]]
+        assert r.is_overdue == [dsas[0], dsas[1], dsas[3]]
         assert r.has_warnings
         assert (warnlines(r.plaintext()) ==
                 ['WARNING: no complete parcel for: ds0, ds4',
-                 'WARNING: overdue: ds0, ds1',
+                 'WARNING: overdue: ds0, ds1, ds3',
                  'WARNING: most recent parcel is incomplete for: ds3'])
 
 

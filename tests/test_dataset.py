@@ -523,6 +523,18 @@ def test_is_due_false():
         assert not dsa.is_due()
 
 
+def test_is_due_true_because_incomplete():
+    with tempdatasetdir() as dsa:
+        dsa.write_config({'interval': '1 hour'})
+        old = datetime.strptime('2000-01-02T030405Z', '%Y-%m-%dT%H%M%S%z')
+        dsa.data_path.joinpath('2000-01-02T030405Z.txt').touch()
+        now = datetime.now(old.tzinfo)
+        last = now - timedelta(minutes=30)
+        pid = last.strftime('%Y-%m-%dT%H%M%SZ')
+        dsa.incomplete_path.joinpath(f'{pid}.txt').touch()
+        assert dsa.is_due()
+
+
 def test_is_due_true():
     with tempdatasetdir() as dsa:
         dsa.write_config({'interval': '1 hour'})
