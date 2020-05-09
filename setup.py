@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="export_manager",
-    version="0.0.5",
+    version="0.0.6",
     author="Jacob Williams",
     author_email="jacobaw@gmail.com",
     description="A tool for managing automated exports of personal data",
