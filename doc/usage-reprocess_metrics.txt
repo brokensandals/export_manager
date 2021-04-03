@@ -1,5 +1,4 @@
-usage: export_manager reprocess_metrics [-h] [-p [PARCEL_ID]]
-                                              path [path ...]
+usage: export_manager reprocess_metrics [-h] [-p [PARCEL_ID]] path [path ...]
 
 positional arguments:
   path                  dataset dir path

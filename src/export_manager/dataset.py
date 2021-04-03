@@ -19,6 +19,7 @@ from datetime import timezone
 from git import Repo
 import glob
 from operator import itemgetter
+import os
 from pathlib import Path
 import re
 import shutil
@@ -341,7 +342,8 @@ class DatasetAccessor:
             cfg = self.read_config()
             for name in cfg.get('metrics', {}):
                 cmd = cfg['metrics'][name]['cmd']
-                env = {'PARCEL_PATH': str(path),
+                env = {**os.environ,
+                       'PARCEL_PATH': str(path),
                        'DATASET_PATH': str(self.path)}
                 try:
                     out = subprocess.check_output(cmd, shell=True, env=env)
@@ -410,7 +412,8 @@ class DatasetAccessor:
         dest = self.incomplete_path.joinpath(parcel_id)
         outpath = self.log_path.joinpath(f'{parcel_id}.out')
         errpath = self.log_path.joinpath(f'{parcel_id}.err')
-        env = {'PARCEL_PATH': str(dest),
+        env = {**os.environ,
+               'PARCEL_PATH': str(dest),
                'DATASET_PATH': str(self.path)}
 
         with open(outpath, 'w') as out:
