@@ -1,3 +1,7 @@
+Update:
+
+I used this for about a year. The tool itself works well enough, but keeping the exports for individual services working is a continual pain. Something is constantly breaking because of OS X adding new permission restrictions, or an app removing functionality I relied on, or whatever. I think it's mostly not worth the effort unless the data in a service is extremely important to me. And if you're only exporting from a handful of services, then a middleman like this tool is probably more trouble than it's worth.
+
 # export\_manager
 
 This tool helps manage automatic exports/backups of personal data (for example, from cloud services like Todoist or Goodreads).
